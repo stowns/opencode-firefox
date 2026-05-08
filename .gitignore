@@ -1,2 +1,5 @@
 node_modules
 .opencode
+dist
+web-ext-artifacts/
+.DS_Store

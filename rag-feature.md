@@ -1,2 +1,0 @@
-# User Story
-As a user, I would like to be able to list the Projects known by OpenCode on my system. For a given project, I would like to create or update a vector store with the contents of selected tabs. Then, I would like the vector store be made available to the agents of the project.
