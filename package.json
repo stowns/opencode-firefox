@@ -1,0 +1,19 @@
+{
+  "name": "opencode-firefox",
+  "version": "0.1.0",
+  "description": "Firefox extension integrating OpenCode AI agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx web-ext run",
+    "lint": "npx web-ext lint",
+    "build": "npx web-ext build"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.14.0",
+    "marked": "^15.0.0"
+  },
+  "devDependencies": {
+    "web-ext": "^8.0.0"
+  }
+}
