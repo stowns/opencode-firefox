@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import DOMPurify from "dompurify";
 
 function linkify(text) {
   return text.replace(
@@ -29,6 +30,11 @@ export default function Message({ msg, marked, developerMode }) {
     );
   }
 
+  const renderMarkdown = (text) => {
+    const rawHtml = marked.parse(linkify(text || ""));
+    return { __html: DOMPurify.sanitize(rawHtml) };
+  };
+
   return (
     <div className={`message ${isUser ? "user" : "assistant"}`}>
       <div className="message-header">
@@ -58,11 +64,7 @@ export default function Message({ msg, marked, developerMode }) {
         ) : (
           <>
             <div
-              dangerouslySetInnerHTML={{
-                __html: marked.parse(
-                  linkify(parts.find((p) => p.type === "text")?.text || "")
-                ),
-              }}
+              dangerouslySetInnerHTML={renderMarkdown(parts.find((p) => p.type === "text")?.text || "")}
             />
             <CopyButton
               text={parts.find((p) => p.type === "text")?.text || ""}

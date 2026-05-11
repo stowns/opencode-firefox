@@ -4,13 +4,12 @@ A Firefox sidebar extension that integrates with [OpenCode](https://opencode.ai)
 
 ## Features
 
-- **Sidebar Chat Interface** — OpenCode runs in a native Firefox sidebar, keeping your browser workspace uncluttered
 - **Tab Context** — Select open browser tabs to include their content as context.
-- **Workspace Scoping** — Select a directory on your filesystem to scope the agent's changes to.
-- **Session Management** — Sessions are automatically scoped to workspaces, keeping project conversations separate
-- **Recent Workspaces** — Quick-switch between recently used workspaces with configurable history.
-- **OpenCode Basic Auth support** - Supports sending the `OPENCODE_SERVER_PASSWORD` set during `opencode serve`.
-- **URL formatting** - Agent responses containing url's are detected and re-formatted as hyperlinks.
+- **Workspaces**
+    — Select a directory on your filesystem to scope the agent's changes to.
+    — Sessions are automatically scoped to workspaces, keeping project conversations separate
+    — Switch between recently used workspaces with configurable history.
+- **OpenCode Basic Auth support** - Supports auth via `opencode serve OPENCODE_SERVER_PASSWORD=<pwd>`.
 - **Developer Mode** - View context sent with each message and clear sessions.
 
 ## Screenshots
