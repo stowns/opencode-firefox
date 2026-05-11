@@ -4,13 +4,13 @@ A Firefox sidebar extension that integrates with [OpenCode](https://opencode.ai)
 
 ## Features
 
-- **Tab Context** — Select open browser tabs to include their content as context.
-- **Workspaces**
-    — Select a directory on your filesystem to scope the agent's changes to.
-    — Sessions are automatically scoped to workspaces, keeping project conversations separate
-    — Switch between recently used workspaces with configurable history.
-- **OpenCode Basic Auth support** - Supports auth via `opencode serve OPENCODE_SERVER_PASSWORD=<pwd>`.
-- **Developer Mode** - View context sent with each message and clear sessions.
+* Tab Context — Select open browser tabs to include their content as context.
+* Workspaces
+  * Select a directory on your filesystem to scope the agent's changes to.
+  * Sessions are automatically scoped to workspaces, keeping project conversations separate
+  * Switch between recently used workspaces with configurable history.
+* OpenCode Basic Auth support - Supports auth via `opencode serve OPENCODE_SERVER_PASSWORD=<pwd>`.
+* Developer Mode - View context sent with each message and clear sessions.
 
 ## Screenshots
 
