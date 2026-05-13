@@ -49,7 +49,6 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let assistantText = "";
       let modelID = "";
 
       while (true) {
@@ -66,15 +65,17 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
             if (data === "[DONE]") continue;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.data?.modelID) {
-                modelID = parsed.data.modelID;
+              const payloadType = parsed.payload?.type;
+              const props = parsed.payload?.properties;
+
+              if (payloadType === "message.updated" && props?.info?.modelID) {
+                modelID = props.info.modelID;
               }
-              if (parsed.type === "chunk" && parsed.data?.parts) {
-                for (const part of parsed.data.parts) {
-                  if (part.type === "text" && part.text) {
-                    assistantText += part.text;
-                    port.postMessage({ type: "prompt-chunk", id: promptId, chunk: part.text });
-                  }
+
+              if (payloadType === "message.part.updated" && props?.part) {
+                const part = props.part;
+                if (part.type === "step-finish") {
+                  port.postMessage({ type: "prompt-done", id: promptId, modelID });
                 }
               }
             } catch {

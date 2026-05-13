@@ -206,10 +206,50 @@ export function useOpenCode() {
 
       case "session.idle":
         setWorkingStatus(null);
+        setIsStreaming(false);
         break;
 
+      case "message.updated": {
+        const info = props.info as { modelID?: string } | undefined;
+        if (info?.modelID) {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            const last = next[lastIdx];
+            if (last?.role === "assistant") {
+              next[lastIdx] = {
+                ...last,
+                info: { ...last.info, modelID: info.modelID, role: "assistant" },
+              };
+            }
+            return next;
+          });
+        }
+        break;
+      }
+
       case "message.part.updated": {
-        const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string> } | undefined;
+        const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string>; text?: string } | undefined;
+        if (part?.type === "text" && part.text) {
+          assistantTextRef.current = part.text;
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            const last = next[lastIdx];
+            if (last?.role === "assistant") {
+              next[lastIdx] = {
+                ...last,
+                parts: [{ type: "text", text: part.text }],
+              };
+            } else {
+              next.push({
+                role: "assistant",
+                parts: [{ type: "text", text: part.text }],
+              });
+            }
+            return next;
+          });
+        }
         if (part?.type === "tool" && part.state === "running") {
           const toolName = part.name || "";
           const input = part.input || {};
