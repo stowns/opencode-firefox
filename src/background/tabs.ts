@@ -57,6 +57,11 @@ export function setupTabListeners() {
     }
   });
 
+  browser.tabs.onActivated.addListener(async (activeInfo: Tabs.OnActivatedActiveInfoType) => {
+    if (!sidebarPort) return;
+    sidebarPort.postMessage({ type: "active-tab-changed", tabId: activeInfo.tabId });
+  });
+
   browser.windows.onFocusChanged.addListener(async (windowId: number) => {
     if (!sidebarPort || windowId < 0) return;
     try {

@@ -20,12 +20,12 @@ declare global {
     };
     tabs: {
       query: () => Promise<unknown[]>;
-      onActivated: { addListener: () => void };
-      onRemoved: { addListener: () => void };
-      onUpdated: { addListener: () => void };
+      onActivated: { addListener: ReturnType<typeof vi.fn> };
+      onRemoved: { addListener: ReturnType<typeof vi.fn> };
+      onUpdated: { addListener: ReturnType<typeof vi.fn> };
     };
     windows: {
-      onFocusChanged: { addListener: () => void };
+      onFocusChanged: { addListener: ReturnType<typeof vi.fn> };
     };
   };
 }
@@ -58,11 +58,11 @@ global.browser = {
   },
   tabs: {
     query: async () => [],
-    onActivated: { addListener: () => {} },
-    onRemoved: { addListener: () => {} },
-    onUpdated: { addListener: () => {} },
+    onActivated: { addListener: vi.fn() },
+    onRemoved: { addListener: vi.fn() },
+    onUpdated: { addListener: vi.fn() },
   },
   windows: {
-    onFocusChanged: { addListener: () => {} },
+    onFocusChanged: { addListener: vi.fn() },
   },
 };

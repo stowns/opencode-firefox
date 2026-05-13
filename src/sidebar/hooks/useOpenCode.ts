@@ -794,8 +794,8 @@ export function useOpenCode() {
             .map(
               (tc) =>
                 tc.isActive
-                  ? `[Active Tab: "${tc.title}" (${tc.url})]\n${tc.text}`
-                  : `[Context: Tab "${tc.title}" (${tc.url})]\n${tc.text}`
+                  ? `[Active Tab (The user can see the content of this tab) "${tc.title}" (${tc.url})]\n${tc.text}]`
+                  : `[Tab (The user cannot see the content of this tab) "${tc.title}" (${tc.url})]\n${tc.text}]`
             )
             .join("\n\n");
         }
