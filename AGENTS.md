@@ -30,3 +30,10 @@ Firefox extension/add-on.
 
 - AMO (addons.mozilla.org) requires signing; use `web-ext sign --api-key ... --api-secret ...`
 - Self-distributed .xpi files do not require signing but won't work on release Firefox without enterprise policy
+
+## Code Standards
+- Update existing unit tests when making changes to existing features
+- Add new unit tests for new features
+- Update documentation when existing functionality changes
+- Add documentation when new functionality is added
+- Prefer writing DRY code even if refactors are required

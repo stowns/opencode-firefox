@@ -107,6 +107,7 @@ export function useOpenCode() {
   const promptIdRef = useRef(0);
   const assistantTextRef = useRef("");
   const promptModelIdRef = useRef("");
+  const messageRolesRef = useRef<Record<string, string>>({});
 
   const [status, setStatus] = useState("connecting");
   const [statusText, setStatusText] = useState("Connecting...");
@@ -240,7 +241,10 @@ export function useOpenCode() {
         break;
 
       case "message.updated": {
-        const info = props.info as { modelID?: string } | undefined;
+        const info = props.info as { modelID?: string; id?: string; role?: string } | undefined;
+        if (info?.id && info?.role) {
+          messageRolesRef.current[info.id] = info.role;
+        }
         if (info?.modelID) {
           setMessages((prev) => {
             const next = [...prev];
@@ -259,8 +263,10 @@ export function useOpenCode() {
       }
 
       case "message.part.updated": {
-        const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string>; text?: string } | undefined;
+        const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string>; text?: string; messageID?: string } | undefined;
         if (part?.type === "text" && part.text) {
+          const msgRole = part.messageID ? messageRolesRef.current[part.messageID] : undefined;
+          if (msgRole !== "assistant") return;
           assistantTextRef.current = part.text;
           setMessages((prev) => {
             const next = [...prev];
@@ -421,16 +427,17 @@ export function useOpenCode() {
           if (activeTab) {
             setActiveTabId(activeTab.id);
           }
-          const knownIds = knownTabIdsRef.current;
-          const newTabIds = tabsList.filter((t) => !knownIds.has(t.id)).map((t) => t.id);
-          if (newTabIds.length > 0) {
-            setSelectedTabs((prev) => {
-              const next = new Set(prev);
-              newTabIds.forEach((id) => next.add(id));
-              return next;
-            });
-          }
-          knownTabIdsRef.current = new Set(tabsList.map((t) => t.id));
+          const currentIds = new Set(tabsList.map((t) => t.id));
+          const newTabIds = tabsList.filter((t) => !knownTabIdsRef.current.has(t.id)).map((t) => t.id);
+          setSelectedTabs((prev) => {
+            const next = new Set(prev);
+            newTabIds.forEach((id) => next.add(id));
+            for (const id of prev) {
+              if (!currentIds.has(id)) next.delete(id);
+            }
+            return next;
+          });
+          knownTabIdsRef.current = currentIds;
           break;
         }
         case MSG_ACTIVE_TAB_CHANGED:
