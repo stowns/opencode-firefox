@@ -12,7 +12,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidebar: resolve(__dirname, "sidebar.html"),
-        background: resolve(__dirname, "src/background.ts"),
+        background: resolve(__dirname, "src/background/index.ts"),
         "content/extract": resolve(__dirname, "src/content/extract.ts"),
       },
       output: {

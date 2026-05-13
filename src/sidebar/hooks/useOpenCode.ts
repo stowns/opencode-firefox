@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { marked } from "marked";
-import { useEvents } from "./useEvents";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -64,12 +63,24 @@ interface PendingQuestion {
   }>;
 }
 
+interface EventPayload {
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+interface EventData {
+  payload?: EventPayload;
+}
+
 export function useOpenCode() {
   const portRef = useRef<browser.runtime.Port | null>(null);
   const callbacksRef = useRef<Record<number, { resolve: (value: unknown) => void; reject: (reason: Error) => void }>>({});
   const tabContentCallbacksRef = useRef<((tabId: number, content: { title: string; url: string; text: string }) => void) | null>(null);
   const messageApiIdRef = useRef(0);
   const knownTabIdsRef = useRef(new Set<number>());
+  const promptIdRef = useRef(0);
+  const assistantTextRef = useRef("");
+  const promptModelIdRef = useRef("");
 
   const [status, setStatus] = useState("connecting");
   const [statusText, setStatusText] = useState("Connecting...");
@@ -93,9 +104,13 @@ export function useOpenCode() {
   const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>([]);
   const [workspaceHistorySize, setWorkspaceHistorySize] = useState(5);
   const [developerMode, setDeveloperMode] = useState(false);
+  const [workingStatus, setWorkingStatus] = useState<WorkingStatus | null>(null);
+  const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
   const workspacePathRef = useRef(workspacePath);
   const serverConfigRef = useRef(serverConfig);
   const developerModeRef = useRef(developerMode);
+  const activeSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     developerModeRef.current = developerMode;
@@ -120,6 +135,10 @@ export function useOpenCode() {
   useEffect(() => {
     serverConfigRef.current = serverConfig;
   }, [serverConfig]);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSession?.id || null;
+  }, [activeSession]);
 
   const getAuthHeader = useCallback((): string | null => {
     const cfg = serverConfigRef.current;
@@ -162,6 +181,134 @@ export function useOpenCode() {
       });
     }
   }, [getAuthHeader]);
+
+  const handleSSEEvent = useCallback((event: EventData) => {
+    const payload = event.payload;
+    if (!payload) return;
+
+    const type = payload.type;
+    const props = payload.properties || {};
+
+    const currentSessionId = activeSessionIdRef.current;
+    if (!currentSessionId) return;
+
+    const sessionId = props.sessionID as string | undefined;
+    if (sessionId && sessionId !== currentSessionId) return;
+
+    switch (type) {
+      case "session.status": {
+        const statusType = (props.status as { type?: string })?.type;
+        if (statusType === "busy" || statusType === "retry") {
+          setWorkingStatus({ type: "thinking", text: "Thinking..." });
+        }
+        break;
+      }
+
+      case "session.idle":
+        setWorkingStatus(null);
+        break;
+
+      case "message.part.updated": {
+        const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string> } | undefined;
+        if (part?.type === "tool" && part.state === "running") {
+          const toolName = part.name || "";
+          const input = part.input || {};
+          if (toolName === "bash" || toolName === "exec") {
+            const cmd = input.command || "";
+            setWorkingStatus({
+              type: "running",
+              text: `Running: ${cmd.slice(0, 80)}${cmd.length > 80 ? "..." : ""}`,
+            });
+          } else if (toolName === "write" || toolName === "edit") {
+            const filePath = input.path || input.file || "";
+            setWorkingStatus({
+              type: "editing",
+              text: `Editing: ${filePath}`,
+            });
+          } else if (toolName === "glob" || toolName === "grep") {
+            setWorkingStatus({
+              type: "searching",
+              text: `Searching files...`,
+            });
+          } else if (toolName === "read") {
+            const filePath = input.path || input.file || "";
+            setWorkingStatus({
+              type: "reading",
+              text: `Reading: ${filePath}`,
+            });
+          } else {
+            setWorkingStatus({
+              type: "tool",
+              text: `Using ${toolName}...`,
+            });
+          }
+        }
+        break;
+      }
+
+      case "file.edited": {
+        const filePath = props.file as string | undefined;
+        if (filePath) {
+          setWorkingStatus({
+            type: "editing",
+            text: `Editing: ${filePath}`,
+          });
+        }
+        break;
+      }
+
+      case "todo.updated": {
+        const todos = (props.todos as Array<{ status?: string; content?: string }>) || [];
+        const active = todos.find((t) => t.status === "pending" || t.status === "in_progress");
+        if (active) {
+          setWorkingStatus({
+            type: "todo",
+            text: active.content || "Working...",
+          });
+        }
+        break;
+      }
+
+      case "session.compacted":
+        setWorkingStatus({ type: "thinking", text: "Compacting context..." });
+        break;
+
+      case "question.replied":
+        setPendingQuestion(null);
+        break;
+
+      case "question.rejected":
+        setPendingQuestion(null);
+        break;
+
+      case "permission.asked":
+        setPendingPermission({
+          id: props.id as string,
+          sessionID: props.sessionID as string,
+          messageID: (props.tool as { messageID?: string })?.messageID,
+          callID: (props.tool as { callID?: string })?.callID,
+          type: props.permission as string,
+          title: props.permission as string,
+          patterns: props.patterns as string[] | undefined,
+          metadata: props.metadata as Record<string, unknown> | undefined,
+        });
+        break;
+
+      case "permission.replied":
+        setPendingPermission(null);
+        break;
+
+      case "question.asked":
+        setPendingQuestion({
+          id: props.id as string,
+          sessionID: props.sessionID as string,
+          messageID: (props.tool as { messageID?: string })?.messageID,
+          callID: (props.tool as { callID?: string })?.callID,
+          questions: (props.questions as PendingQuestion["questions"]) || [],
+        });
+        break;
+    }
+  }, []);
 
   const connectPort = useCallback(() => {
     const port = browser.runtime.connect({ name: "opencode-sidebar" });
@@ -224,6 +371,62 @@ export function useOpenCode() {
             tabContentCallbacksRef.current(msg.tabId as number, msg.content as { title: string; url: string; text: string });
           }
           break;
+        case "event":
+          handleSSEEvent(msg.event as EventData);
+          break;
+        case "prompt-chunk": {
+          const chunk = msg.chunk as string;
+          assistantTextRef.current += chunk;
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            const last = next[lastIdx];
+            if (last?.role === "assistant") {
+              next[lastIdx] = {
+                ...last,
+                parts: [{ type: "text", text: assistantTextRef.current }],
+              };
+            } else {
+              next.push({
+                role: "assistant",
+                parts: [{ type: "text", text: assistantTextRef.current }],
+              });
+            }
+            return next;
+          });
+          break;
+        }
+        case "prompt-done": {
+          const modelID = msg.modelID as string;
+          if (modelID) {
+            setMessages((prev) => {
+              const next = [...prev];
+              const lastIdx = next.length - 1;
+              const last = next[lastIdx];
+              if (last?.role === "assistant") {
+                next[lastIdx] = {
+                  ...last,
+                  info: { ...last.info, modelID, role: "assistant" },
+                };
+              }
+              return next;
+            });
+          }
+          setIsStreaming(false);
+          break;
+        }
+        case "prompt-error": {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              parts: [{ type: "text", text: `Error: ${msg.error}` }],
+              error: true,
+            },
+          ]);
+          setIsStreaming(false);
+          break;
+        }
       }
     });
 
@@ -236,7 +439,7 @@ export function useOpenCode() {
     });
 
     checkHealth();
-  }, [checkHealth, debug, debugError]);
+  }, [checkHealth, debug, debugError, handleSSEEvent]);
 
   const loadServerConfig = useCallback(async () => {
     try {
@@ -534,6 +737,8 @@ export function useOpenCode() {
       }
 
       setIsStreaming(true);
+      assistantTextRef.current = "";
+      promptModelIdRef.current = "";
 
       let contextText = "You are an agent deployed as a Firefox browser extension. You are provided browser tab content as context and can be configured to modify the filesystem with-in a specific directory (workspace). Use markdown formatting. When referencing websites return their url in the response.";
       if (selectedTabs.size > 0) {
@@ -563,125 +768,26 @@ export function useOpenCode() {
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      try {
-        const body: Record<string, unknown> = { parts: [{ type: "text", text }] };
-        if (contextText) body.system = contextText;
+      const id = ++promptIdRef.current;
+      const cfg = serverConfigRef.current;
+      const auth = getAuthHeader();
+      const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (auth) fetchHeaders.Authorization = auth;
 
-        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
-        const auth = getAuthHeader();
-        if (auth) fetchHeaders.Authorization = auth;
+      const body: Record<string, unknown> = { parts: [{ type: "text", text }] };
+      if (contextText) body.system = contextText;
 
-        const response = await fetch(
-          `${serverConfig.url}/session/${session.id}/message`,
-          {
-            method: "POST",
-            headers: fetchHeaders,
-            body: JSON.stringify(body),
-          }
-        );
-
-        if (response.ok) {
-          const contentType = response.headers.get("content-type") || "";
-          if (contentType.includes("text/event-stream")) {
-            const reader = response.body!.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-            let assistantText = "";
-            let modelID = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const data = line.slice(6);
-                  if (data === "[DONE]") continue;
-                  try {
-                    const parsed = JSON.parse(data);
-                    if (parsed.data?.modelID) {
-                      modelID = parsed.data.modelID;
-                    }
-                    if (parsed.type === "chunk" && parsed.data?.parts) {
-                      for (const part of parsed.data.parts) {
-                        if (part.type === "text" && part.text) {
-                          assistantText += part.text;
-                          setMessages((prev) => {
-                            const next = [...prev];
-                            const lastIdx = next.length - 1;
-                            const last = next[lastIdx];
-                            if (last?.role === "assistant") {
-                              next[lastIdx] = {
-                                ...last,
-                                parts: [{ type: "text", text: assistantText }],
-                              };
-                            } else {
-                              next.push({
-                                role: "assistant",
-                                parts: [{ type: "text", text: assistantText }],
-                              });
-                            }
-                            return next;
-                          });
-                        }
-                      }
-                    }
-                  } catch {
-                    // skip non-JSON data lines
-                  }
-                }
-              }
-            }
-
-            if (modelID) {
-              setMessages((prev) => {
-                const next = [...prev];
-                const lastIdx = next.length - 1;
-                const last = next[lastIdx];
-                if (last?.role === "assistant") {
-                  next[lastIdx] = {
-                    ...last,
-                    info: { ...last.info, modelID, role: "assistant" },
-                  };
-                }
-                return next;
-              });
-            }
-          } else {
-            const data = await response.json();
-            setMessages((prev) => [...prev, data]);
-          }
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              parts: [
-                {
-                  type: "text",
-                  text: `Failed to get response (${response.status})`,
-                },
-              ],
-              error: true,
-            },
-          ]);
-        }
-      } catch (e) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            parts: [{ type: "text", text: `Error: ${(e as Error).message}` }],
-            error: true,
-          },
-        ]);
-      } finally {
-        setIsStreaming(false);
-      }
+      portRef.current?.postMessage({
+        type: "send-prompt",
+        id,
+        serverUrl: cfg.url,
+        auth: auth || undefined,
+        sessionId: session.id,
+        text,
+        body,
+        system: contextText || undefined,
+        devMode: developerModeRef.current,
+      });
     },
     [
       isStreaming,
@@ -692,9 +798,20 @@ export function useOpenCode() {
       extractSelectedTabs,
       getAuthHeader,
       getWorkspaceDir,
-      serverConfig.url,
     ]
   );
+
+  const subscribeEvents = useCallback((sessionId: string) => {
+    if (portRef.current) {
+      portRef.current.postMessage({ type: "subscribe-events", sessionId });
+    }
+  }, []);
+
+  const unsubscribeEvents = useCallback(() => {
+    if (portRef.current) {
+      portRef.current.postMessage({ type: "unsubscribe-events" });
+    }
+  }, []);
 
   useEffect(() => {
     loadServerConfig();
@@ -733,11 +850,16 @@ export function useOpenCode() {
     return () => clearInterval(interval);
   }, [getAuthHeader]);
 
-  const { workingStatus, pendingPermission, setPendingPermission, pendingQuestion, setPendingQuestion } = useEvents(
-    serverConfig.url,
-    getAuthHeader,
-    activeSession?.id || null
-  );
+  useEffect(() => {
+    if (activeSession?.id) {
+      subscribeEvents(activeSession.id);
+    } else {
+      unsubscribeEvents();
+    }
+    return () => {
+      unsubscribeEvents();
+    };
+  }, [activeSession?.id, subscribeEvents, unsubscribeEvents]);
 
   const respondToPermission = useCallback(async (permissionId: string, response: string) => {
     if (!activeSession) return;
@@ -785,6 +907,7 @@ export function useOpenCode() {
       await apiRequest(`/session/${activeSession.id}/abort`, {
         method: "POST",
       });
+      portRef.current?.postMessage({ type: "abort-prompt" });
       setIsStreaming(false);
     } catch (e) {
       console.error("Failed to abort session:", e);
