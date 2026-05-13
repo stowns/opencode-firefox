@@ -1,5 +1,16 @@
 import type { Runtime } from "firefox-webext-browser";
-import type { SidebarMessage } from "./types";
+import type { SidebarToBackground } from "../shared/protocol";
+import {
+  MSG_HEALTH_CHECK,
+  MSG_API_REQUEST,
+  MSG_GET_TABS,
+  MSG_EXTRACT_TAB_CONTENT,
+  MSG_SUBSCRIBE_EVENTS,
+  MSG_UNSUBSCRIBE_EVENTS,
+  MSG_SEND_PROMPT,
+  MSG_ABORT_PROMPT,
+  MSG_SET_DEVELOPER_MODE,
+} from "../shared/protocol";
 import { handleHealthCheck, handleApiRequest } from "./api";
 import { subscribeEvents, unsubscribeEvents, setSidebarPort as setEventsPort, abortSSE } from "./events";
 import { handleSendPrompt, abortPrompt } from "./prompt";
@@ -26,7 +37,7 @@ export function setupPortListener() {
         abortPrompt();
       });
 
-      port.onMessage.addListener((message: SidebarMessage) => {
+      port.onMessage.addListener((message: SidebarToBackground) => {
         handleMessage(port, message);
       });
 
@@ -35,45 +46,45 @@ export function setupPortListener() {
   });
 }
 
-async function handleMessage(port: Runtime.Port, message: SidebarMessage) {
+async function handleMessage(port: Runtime.Port, message: SidebarToBackground) {
   switch (message.type) {
-    case "health-check":
+    case MSG_HEALTH_CHECK:
       await handleHealthCheck(port, message);
       break;
 
-    case "api-request":
+    case MSG_API_REQUEST:
       await handleApiRequest(port, message);
       break;
 
-    case "get-tabs":
+    case MSG_GET_TABS:
       await handleGetTabs(port);
       break;
 
-    case "extract-tab-content":
+    case MSG_EXTRACT_TAB_CONTENT:
       if (message.tabId !== undefined) {
         await handleExtractTabContent(port, message.tabId);
       }
       break;
 
-    case "subscribe-events":
+    case MSG_SUBSCRIBE_EVENTS:
       if (message.sessionId) {
         subscribeEvents(message.sessionId);
       }
       break;
 
-    case "unsubscribe-events":
+    case MSG_UNSUBSCRIBE_EVENTS:
       unsubscribeEvents();
       break;
 
-    case "send-prompt":
+    case MSG_SEND_PROMPT:
       await handleSendPrompt(port, message);
       break;
 
-    case "abort-prompt":
+    case MSG_ABORT_PROMPT:
       abortPrompt();
       break;
 
-    case "set-developer-mode":
+    case MSG_SET_DEVELOPER_MODE:
       if (message.enabled) {
         enableDebug();
       } else {

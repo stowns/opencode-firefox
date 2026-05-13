@@ -1,4 +1,5 @@
 import type { Runtime } from "firefox-webext-browser";
+import { MSG_EVENT } from "../shared/protocol";
 import { eventsDebug } from "../debug";
 
 let sseAbortController: AbortController | null = null;
@@ -93,7 +94,7 @@ function forwardEvent(event: unknown) {
   if (sessionId && sessionId !== subscribedSessionId) return;
 
   eventsDebug("forwarding event: type=%s", payload.type);
-  sidebarPort.postMessage({ type: "event", event });
+  sidebarPort.postMessage({ type: MSG_EVENT, event });
 }
 
 export function abortSSE() {

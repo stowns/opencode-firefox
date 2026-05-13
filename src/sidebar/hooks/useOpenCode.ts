@@ -1,6 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { marked } from "marked";
 import { sidebarDebug, enableDebug, disableDebug } from "../../debug";
+import type { SidebarToBackground, BackgroundToSidebar } from "../../shared/protocol";
+import {
+  MSG_HEALTH_CHECK,
+  MSG_API_REQUEST,
+  MSG_GET_TABS,
+  MSG_EXTRACT_TAB_CONTENT,
+  MSG_SUBSCRIBE_EVENTS,
+  MSG_UNSUBSCRIBE_EVENTS,
+  MSG_SEND_PROMPT,
+  MSG_ABORT_PROMPT,
+  MSG_SET_DEVELOPER_MODE,
+  MSG_HEALTH_OK,
+  MSG_HEALTH_FAIL,
+  MSG_API_RESPONSE,
+  MSG_API_ERROR,
+  MSG_TABS_LIST,
+  MSG_TABS_ERROR,
+  MSG_ACTIVE_TAB_CHANGED,
+  MSG_TAB_CONTENT,
+  MSG_TAB_CONTENT_ERROR,
+  MSG_EVENT,
+  MSG_PROMPT_CHUNK,
+  MSG_PROMPT_DONE,
+  MSG_PROMPT_ERROR,
+} from "../../shared/protocol";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -120,7 +145,7 @@ export function useOpenCode() {
     } else {
       disableDebug();
     }
-    portRef.current?.postMessage({ type: "set-developer-mode", enabled: developerMode });
+    portRef.current?.postMessage({ type: MSG_SET_DEVELOPER_MODE, enabled: developerMode });
   }, [developerMode]);
 
   const debug = useCallback((...args: unknown[]) => {
@@ -164,15 +189,14 @@ export function useOpenCode() {
     return new Promise((resolve, reject) => {
       const id = ++messageApiIdRef.current;
       const cfg = serverConfigRef.current;
-      const msg = {
-        type: "api-request",
+      portRef.current?.postMessage({
+        type: MSG_API_REQUEST,
         id,
         path,
         options,
         auth: getAuthHeader(),
         serverUrl: cfg.url,
-      };
-      portRef.current?.postMessage(msg);
+      });
       callbacksRef.current[id] = { resolve, reject };
     });
   }, [getAuthHeader]);
@@ -181,7 +205,7 @@ export function useOpenCode() {
     if (portRef.current) {
       const cfg = serverConfigRef.current;
       portRef.current.postMessage({
-        type: "health-check",
+        type: MSG_HEALTH_CHECK,
         auth: getAuthHeader(),
         serverUrl: cfg.url,
       });
@@ -360,19 +384,19 @@ export function useOpenCode() {
     const port = browser.runtime.connect({ name: "opencode-sidebar" });
     portRef.current = port;
 
-    port.onMessage.addListener((msg: Record<string, unknown>) => {
+    port.onMessage.addListener((msg: BackgroundToSidebar) => {
       switch (msg.type) {
-        case "health-ok":
+        case MSG_HEALTH_OK:
           setStatus("connected");
           setStatusText(`OpenCode ${(msg.data as Record<string, string>)?.version || ""}`);
           break;
-        case "health-fail":
+        case MSG_HEALTH_FAIL:
           setSessions([]);
           setActiveSession(null);
           setStatus("disconnected");
           setStatusText("Not connected");
           break;
-        case "api-response": {
+        case MSG_API_RESPONSE: {
           const cb = callbacksRef.current[msg.id as number];
           if (cb) {
             debug("[sidebar] api-response:", msg.id, JSON.stringify(msg.data).substring(0, 200));
@@ -381,7 +405,7 @@ export function useOpenCode() {
           }
           break;
         }
-        case "api-error": {
+        case MSG_API_ERROR: {
           const cb = callbacksRef.current[msg.id as number];
           if (cb) {
             debugError("[sidebar] api-error:", msg.id, msg.error);
@@ -390,7 +414,7 @@ export function useOpenCode() {
           }
           break;
         }
-        case "tabs-list": {
+        case MSG_TABS_LIST: {
           const tabsList = (msg.tabs as Tab[]) || [];
           setTabs(tabsList);
           const activeTab = tabsList.find((t) => t.active);
@@ -409,18 +433,18 @@ export function useOpenCode() {
           knownTabIdsRef.current = new Set(tabsList.map((t) => t.id));
           break;
         }
-        case "active-tab-changed":
+        case MSG_ACTIVE_TAB_CHANGED:
           setActiveTabId(msg.tabId as number);
           break;
-        case "tab-content":
+        case MSG_TAB_CONTENT:
           if (tabContentCallbacksRef.current) {
             tabContentCallbacksRef.current(msg.tabId as number, msg.content as { title: string; url: string; text: string });
           }
           break;
-        case "event":
+        case MSG_EVENT:
           handleSSEEvent(msg.event as EventData);
           break;
-        case "prompt-chunk": {
+        case MSG_PROMPT_CHUNK: {
           const chunk = msg.chunk as string;
           assistantTextRef.current += chunk;
           setMessages((prev) => {
@@ -442,7 +466,7 @@ export function useOpenCode() {
           });
           break;
         }
-        case "prompt-done": {
+        case MSG_PROMPT_DONE: {
           const modelID = msg.modelID as string;
           if (modelID) {
             setMessages((prev) => {
@@ -461,7 +485,7 @@ export function useOpenCode() {
           setIsStreaming(false);
           break;
         }
-        case "prompt-error": {
+        case MSG_PROMPT_ERROR: {
           setMessages((prev) => [
             ...prev,
             {
@@ -728,7 +752,7 @@ export function useOpenCode() {
 
   const loadTabs = useCallback(() => {
     if (portRef.current) {
-      portRef.current.postMessage({ type: "get-tabs" });
+      portRef.current.postMessage({ type: MSG_GET_TABS });
     }
   }, []);
 
@@ -758,10 +782,7 @@ export function useOpenCode() {
 
       for (const tId of tabIds) {
         try {
-          portRef.current?.postMessage({
-            type: "extract-tab-content",
-            tabId: tId,
-          });
+          portRef.current?.postMessage({ type: MSG_EXTRACT_TAB_CONTENT, tabId: tId });
         } catch {
           pending.delete(tId);
           if (pending.size === 0) resolve(contents);
@@ -803,7 +824,7 @@ export function useOpenCode() {
 
       if (workspacePathRef.current) {
         const wp = getWorkspaceDir();
-        const projectContext = `Use ${wp} as the current working directory from now on. All created files and references to files should be relative to ${wp} unless explicity told to do otherwise`;
+        const projectContext = `Use ${wp} as the current working directory from now on. ${wp} is your current directory and current workspace. All created files and references to files should be relative to ${wp} unless explicity told to do otherwise`;
         contextText = `${contextText}\n\n${projectContext}`;
       }
 
@@ -824,7 +845,7 @@ export function useOpenCode() {
       if (contextText) body.system = contextText;
 
       portRef.current?.postMessage({
-        type: "send-prompt",
+        type: MSG_SEND_PROMPT,
         id,
         serverUrl: cfg.url,
         auth: auth || undefined,
@@ -848,13 +869,13 @@ export function useOpenCode() {
 
   const subscribeEvents = useCallback((sessionId: string) => {
     if (portRef.current) {
-      portRef.current.postMessage({ type: "subscribe-events", sessionId });
+      portRef.current.postMessage({ type: MSG_SUBSCRIBE_EVENTS, sessionId });
     }
   }, []);
 
   const unsubscribeEvents = useCallback(() => {
     if (portRef.current) {
-      portRef.current.postMessage({ type: "unsubscribe-events" });
+      portRef.current.postMessage({ type: MSG_UNSUBSCRIBE_EVENTS });
     }
   }, []);
 
@@ -886,7 +907,7 @@ export function useOpenCode() {
       if (portRef.current) {
         const cfg = serverConfigRef.current;
         portRef.current.postMessage({
-          type: "health-check",
+          type: MSG_HEALTH_CHECK,
           auth: getAuthHeader(),
           serverUrl: cfg.url,
         });
@@ -952,7 +973,7 @@ export function useOpenCode() {
       await apiRequest(`/session/${activeSession.id}/abort`, {
         method: "POST",
       });
-      portRef.current?.postMessage({ type: "abort-prompt" });
+      portRef.current?.postMessage({ type: MSG_ABORT_PROMPT });
       setIsStreaming(false);
     } catch (e) {
       console.error("Failed to abort session:", e);

@@ -1,5 +1,6 @@
 import type { Runtime } from "firefox-webext-browser";
-import type { SidebarMessage } from "./types";
+import type { SidebarToBackground } from "../shared/protocol";
+import { MSG_SEND_PROMPT, MSG_PROMPT_DONE, MSG_PROMPT_ERROR } from "../shared/protocol";
 import { promptDebug } from "../debug";
 
 interface ActivePrompt {
@@ -9,7 +10,7 @@ interface ActivePrompt {
 
 let activePrompt: ActivePrompt | null = null;
 
-export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessage) {
+export async function handleSendPrompt(port: Runtime.Port, message: Extract<SidebarToBackground, { type: typeof MSG_SEND_PROMPT }>) {
   if (activePrompt) {
     promptDebug("aborting previous prompt");
     activePrompt.controller.abort();
@@ -44,7 +45,7 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
 
     if (!response.ok) {
       promptDebug("prompt error: status=%d", response.status);
-      port.postMessage({ type: "prompt-error", id: promptId, error: `Failed to get response (${response.status})` });
+      port.postMessage({ type: MSG_PROMPT_ERROR, id: promptId, error: `Failed to get response (${response.status})` });
       activePrompt = null;
       return;
     }
@@ -83,7 +84,7 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
                 const part = props.part;
                 if (part.type === "step-finish") {
                   promptDebug("step-finish, sending prompt-done");
-                  port.postMessage({ type: "prompt-done", id: promptId, modelID });
+                  port.postMessage({ type: MSG_PROMPT_DONE, id: promptId, modelID });
                 }
               }
             } catch {
@@ -94,16 +95,16 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
       }
 
       promptDebug("stream ended, sending prompt-done modelID=%s", modelID);
-      port.postMessage({ type: "prompt-done", id: promptId, modelID });
+      port.postMessage({ type: MSG_PROMPT_DONE, id: promptId, modelID });
     } else {
       const data = await response.json();
       promptDebug("non-SSE response, sending prompt-done");
-      port.postMessage({ type: "prompt-done", id: promptId, data });
+      port.postMessage({ type: MSG_PROMPT_DONE, id: promptId, data });
     }
   } catch (e) {
     if ((e as Error).name !== "AbortError") {
       promptDebug("prompt exception: %s", (e as Error).message);
-      port.postMessage({ type: "prompt-error", id: promptId, error: (e as Error).message });
+      port.postMessage({ type: MSG_PROMPT_ERROR, id: promptId, error: (e as Error).message });
     }
   }
 

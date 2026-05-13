@@ -1,4 +1,6 @@
 import type { Runtime, Tabs } from "firefox-webext-browser";
+import type { SidebarToBackground } from "../shared/protocol";
+import { MSG_TABS_LIST, MSG_TABS_ERROR, MSG_TAB_CONTENT, MSG_TAB_CONTENT_ERROR, MSG_ACTIVE_TAB_CHANGED } from "../shared/protocol";
 
 let tabUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 let sidebarPort: Runtime.Port | null = null;
@@ -20,7 +22,7 @@ export async function sendTabs() {
   if (!sidebarPort) return;
   try {
     const tabs = await browser.tabs.query({});
-    sidebarPort.postMessage({ type: "tabs-list", tabs: filterTabs(tabs) });
+    sidebarPort.postMessage({ type: MSG_TABS_LIST, tabs: filterTabs(tabs) });
   } catch (err) {
     console.error("Failed to send tabs:", err);
   }
@@ -34,18 +36,18 @@ export function scheduleTabUpdate() {
 export async function handleGetTabs(port: Runtime.Port) {
   try {
     const tabs = await browser.tabs.query({});
-    port.postMessage({ type: "tabs-list", tabs: filterTabs(tabs) });
+    port.postMessage({ type: MSG_TABS_LIST, tabs: filterTabs(tabs) });
   } catch (err) {
-    port.postMessage({ type: "tabs-error", error: (err as Error).message });
+    port.postMessage({ type: MSG_TABS_ERROR, error: (err as Error).message });
   }
 }
 
 export async function handleExtractTabContent(port: Runtime.Port, tabId: number) {
   try {
     const results = await browser.tabs.sendMessage(tabId, { type: "extract-content" });
-    port.postMessage({ type: "tab-content", tabId, content: results });
+    port.postMessage({ type: MSG_TAB_CONTENT, tabId, content: results });
   } catch (err) {
-    port.postMessage({ type: "tab-content-error", tabId, error: (err as Error).message });
+    port.postMessage({ type: MSG_TAB_CONTENT_ERROR, tabId, error: (err as Error).message });
   }
 }
 
@@ -59,7 +61,7 @@ export function setupTabListeners() {
 
   browser.tabs.onActivated.addListener(async (activeInfo: Tabs.OnActivatedActiveInfoType) => {
     if (!sidebarPort) return;
-    sidebarPort.postMessage({ type: "active-tab-changed", tabId: activeInfo.tabId });
+    sidebarPort.postMessage({ type: MSG_ACTIVE_TAB_CHANGED, tabId: activeInfo.tabId });
   });
 
   browser.windows.onFocusChanged.addListener(async (windowId: number) => {
@@ -67,7 +69,7 @@ export function setupTabListeners() {
     try {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       if (tabs.length > 0) {
-        sidebarPort.postMessage({ type: "active-tab-changed", tabId: tabs[0].id });
+        sidebarPort.postMessage({ type: MSG_ACTIVE_TAB_CHANGED, tabId: tabs[0].id });
       }
     } catch (err) {
       console.error("Failed to get active tab on window focus:", err);
