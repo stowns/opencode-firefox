@@ -1,4 +1,18 @@
-import React from "react";
+interface Tab {
+  id: number;
+  title?: string;
+  url?: string;
+  active?: boolean;
+}
+
+interface TabContextPanelProps {
+  open: boolean;
+  tabs: Tab[];
+  selectedTabs: Set<number>;
+  activeTabId: number | null;
+  onToggleTab: (tabId: number, checked: boolean) => void;
+  onRefresh: () => void;
+}
 
 export default function TabContextPanel({
   open,
@@ -7,7 +21,7 @@ export default function TabContextPanel({
   activeTabId,
   onToggleTab,
   onRefresh,
-}) {
+}: TabContextPanelProps) {
   if (!open) return null;
 
   return (

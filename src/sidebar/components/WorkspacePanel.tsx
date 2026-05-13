@@ -1,8 +1,17 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
-export default function WorkspacePanel({ open, workspacePath, onSet, onClose, recentWorkspaces, onRemoveRecent }) {
+interface WorkspacePanelProps {
+  open: boolean;
+  workspacePath: string;
+  onSet: (path: string) => void;
+  onClose: () => void;
+  recentWorkspaces: string[];
+  onRemoveRecent: (path: string) => void;
+}
+
+export default function WorkspacePanel({ open, workspacePath, onSet, onClose, recentWorkspaces, onRemoveRecent }: WorkspacePanelProps) {
   const [input, setInput] = useState(workspacePath);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -24,7 +33,7 @@ export default function WorkspacePanel({ open, workspacePath, onSet, onClose, re
     onClose();
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
       handleSet();
@@ -33,12 +42,12 @@ export default function WorkspacePanel({ open, workspacePath, onSet, onClose, re
     }
   };
 
-  const handleRecentClick = (path) => {
+  const handleRecentClick = (path: string) => {
     onSet(path);
     onClose();
   };
 
-  const handleRemoveRecent = (e, path) => {
+  const handleRemoveRecent = (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
     onRemoveRecent(path);
   };

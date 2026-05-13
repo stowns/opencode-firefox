@@ -1,10 +1,50 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
-  const [workingStatus, setWorkingStatus] = useState(null);
-  const [pendingPermission, setPendingPermission] = useState(null);
-  const [pendingQuestion, setPendingQuestion] = useState(null);
-  const abortRef = useRef(null);
+interface WorkingStatus {
+  type: string;
+  text: string;
+}
+
+interface PendingPermission {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  type?: string;
+  title?: string;
+  patterns?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+interface PendingQuestion {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  questions: Array<{
+    question?: string;
+    header?: string;
+    options?: Array<{
+      label: string;
+      description?: string;
+    }>;
+  }>;
+}
+
+interface EventPayload {
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+interface EventData {
+  payload?: EventPayload;
+}
+
+export function useEvents(baseUrl: string, getAuthHeader: () => string | null, activeSessionId: string | null) {
+  const [workingStatus, setWorkingStatus] = useState<WorkingStatus | null>(null);
+  const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const baseUrlRef = useRef(baseUrl);
   const getAuthHeaderRef = useRef(getAuthHeader);
   const activeSessionIdRef = useRef(activeSessionId);
@@ -25,7 +65,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
 
     const readStream = async () => {
       try {
-        const headers = { Accept: "text/event-stream" };
+        const headers: Record<string, string> = { Accept: "text/event-stream" };
         const auth = getAuthHeaderRef.current();
         if (auth) headers.Authorization = auth;
 
@@ -38,7 +78,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
 
         if (!response.ok) return;
 
-        const reader = response.body.getReader();
+        const reader = response.body!.getReader();
         const decoder = new TextDecoder();
 
         while (true) {
@@ -52,7 +92,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               try {
-                const event = JSON.parse(line.slice(6));
+                const event = JSON.parse(line.slice(6)) as EventData;
                 handleEvent(event);
               } catch {
                 // skip malformed events
@@ -61,13 +101,13 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
           }
         }
       } catch (e) {
-        if (e.name !== "AbortError" && !controller.signal.aborted) {
+        if ((e as Error).name !== "AbortError" && !controller.signal.aborted) {
           setTimeout(connectSSE, 3000);
         }
       }
     };
 
-    const handleEvent = (event) => {
+    const handleEvent = (event: EventData) => {
       const payload = event.payload;
       if (!payload) return;
 
@@ -77,12 +117,12 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
       const currentSessionId = activeSessionIdRef.current;
       if (!currentSessionId) return;
 
-      const sessionId = props.sessionID;
+      const sessionId = props.sessionID as string | undefined;
       if (sessionId && sessionId !== currentSessionId) return;
 
       switch (type) {
         case "session.status": {
-          const statusType = props.status?.type;
+          const statusType = (props.status as { type?: string })?.type;
           if (statusType === "busy" || statusType === "retry") {
             setWorkingStatus({ type: "thinking", text: "Thinking..." });
           }
@@ -94,8 +134,8 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
           break;
 
         case "message.part.updated": {
-          const part = props.part || {};
-          if (part.type === "tool" && part.state === "running") {
+          const part = props.part as { type?: string; state?: string; name?: string; input?: Record<string, string> } | undefined;
+          if (part?.type === "tool" && part.state === "running") {
             const toolName = part.name || "";
             const input = part.input || {};
             if (toolName === "bash" || toolName === "exec") {
@@ -132,7 +172,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
         }
 
         case "file.edited": {
-          const filePath = props.file || "";
+          const filePath = props.file as string | undefined;
           if (filePath) {
             setWorkingStatus({
               type: "editing",
@@ -143,7 +183,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
         }
 
         case "todo.updated": {
-          const todos = props.todos || [];
+          const todos = (props.todos as Array<{ status?: string; content?: string }>) || [];
           const active = todos.find((t) => t.status === "pending" || t.status === "in_progress");
           if (active) {
             setWorkingStatus({
@@ -168,14 +208,14 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
 
         case "permission.asked":
           setPendingPermission({
-            id: props.id,
-            sessionID: props.sessionID,
-            messageID: props.tool?.messageID,
-            callID: props.tool?.callID,
-            type: props.permission,
-            title: props.permission,
-            patterns: props.patterns || [],
-            metadata: props.metadata || {},
+            id: props.id as string,
+            sessionID: props.sessionID as string,
+            messageID: (props.tool as { messageID?: string })?.messageID,
+            callID: (props.tool as { callID?: string })?.callID,
+            type: props.permission as string,
+            title: props.permission as string,
+            patterns: props.patterns as string[] | undefined,
+            metadata: props.metadata as Record<string, unknown> | undefined,
           });
           break;
 
@@ -185,11 +225,11 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
 
         case "question.asked":
           setPendingQuestion({
-            id: props.id,
-            sessionID: props.sessionID,
-            messageID: props.tool?.messageID,
-            callID: props.tool?.callID,
-            questions: props.questions || [],
+            id: props.id as string,
+            sessionID: props.sessionID as string,
+            messageID: (props.tool as { messageID?: string })?.messageID,
+            callID: (props.tool as { callID?: string })?.callID,
+            questions: (props.questions as PendingQuestion["questions"]) || [],
           });
           break;
       }
@@ -219,7 +259,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
     if (!sessionId) return;
 
     try {
-      const headers = {};
+      const headers: Record<string, string> = {};
       const auth = getAuthHeaderRef.current();
       if (auth) headers.Authorization = auth;
 
@@ -234,7 +274,7 @@ export function useEvents(baseUrl, getAuthHeader, activeSessionId) {
       } else {
         setWorkingStatus(null);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, []);

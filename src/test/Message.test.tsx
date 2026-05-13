@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import Message from "../sidebar/components/Message";
+import type { Marked } from "marked";
 
 const mockMarked = {
-  parse: (text) => `<p>${text}</p>`,
-};
+  parse: (text: string) => `<p>${text}</p>`,
+} as unknown as Marked;
 
 describe("Message", () => {
   it("renders user message", () => {

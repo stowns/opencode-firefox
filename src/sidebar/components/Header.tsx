@@ -1,6 +1,12 @@
-import React from "react";
+interface HeaderProps {
+  status: string;
+  statusText: string;
+  onSettingsClick: () => void;
+  onClearSession: () => void;
+  developerMode?: boolean;
+}
 
-export default function Header({ status, statusText, onSettingsClick, onClearSession, developerMode }) {
+export default function Header({ status, statusText, onSettingsClick, onClearSession, developerMode }: HeaderProps) {
   return (
     <header id="header">
       <div id="connection-status">

@@ -1,16 +1,22 @@
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+interface PageContent {
+  title: string;
+  url: string;
+  text: string;
+}
+
+browser.runtime.onMessage.addListener((request: { type: string }, _sender: unknown, sendResponse: (response: PageContent) => void) => {
   if (request.type === "extract-content") {
     const content = extractPageContent();
     sendResponse(content);
   }
 });
 
-function extractPageContent() {
+function extractPageContent(): PageContent {
   const title = document.title || "";
   const url = window.location.href;
 
   let text = "";
-  const reader = document.querySelector("article, main, [role='main'], .content, #content, .post, .article");
+  const reader = document.querySelector<HTMLElement>("article, main, [role='main'], .content, #content, .post, .article");
   if (reader) {
     text = reader.innerText || reader.textContent || "";
   } else {

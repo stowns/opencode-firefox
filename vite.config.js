@@ -6,11 +6,20 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   build: {
-    outDir: resolve(__dirname, "dist/sidebar"),
+    outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
     minify: false,
     rollupOptions: {
-      input: resolve(__dirname, "sidebar.html"),
+      input: {
+        sidebar: resolve(__dirname, "sidebar.html"),
+        background: resolve(__dirname, "src/background.ts"),
+        "content/extract": resolve(__dirname, "src/content/extract.ts"),
+      },
+      output: {
+        entryFileNames: "[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+      },
     },
   },
 });

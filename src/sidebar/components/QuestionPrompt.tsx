@@ -1,16 +1,38 @@
-import React from "react";
+interface QuestionOption {
+  label: string;
+  description?: string;
+}
 
-export default function QuestionPrompt({ question, onAnswer }) {
+interface QuestionItem {
+  question?: string;
+  header?: string;
+  options?: QuestionOption[];
+}
+
+interface QuestionData {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  questions: QuestionItem[];
+}
+
+interface QuestionPromptProps {
+  question: QuestionData | null;
+  onAnswer: (id: string, answers: string[][], context?: { header?: string; question?: string; answer?: string; description?: string }) => void;
+}
+
+export default function QuestionPrompt({ question, onAnswer }: QuestionPromptProps) {
   if (!question || !question.questions || question.questions.length === 0) return null;
 
-  const handleSubmit = (questionIndex, optionIndex) => {
+  const handleSubmit = (questionIndex: number, optionIndex: number) => {
     const answers = question.questions.map((q, i) => {
       if (i === questionIndex) {
-        return [q.options[optionIndex]?.label];
+        return [q.options?.[optionIndex]?.label];
       }
       return [];
     });
-    const selectedOption = question.questions[questionIndex]?.options[optionIndex];
+    const selectedOption = question.questions[questionIndex]?.options?.[optionIndex];
     onAnswer(question.id, answers, {
       question: question.questions[questionIndex]?.question,
       header: question.questions[questionIndex]?.header,

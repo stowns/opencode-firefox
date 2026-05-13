@@ -1,6 +1,20 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
-export default function SettingsPanel({ open, serverConfig, workspaceHistorySize, developerMode, onSave }) {
+interface ServerConfig {
+  url: string;
+  username: string;
+  password: string;
+}
+
+interface SettingsPanelProps {
+  open: boolean;
+  serverConfig: ServerConfig;
+  workspaceHistorySize: number;
+  developerMode: boolean;
+  onSave: (config: Partial<ServerConfig> & { workspaceHistorySize?: number; developerMode?: boolean }) => void;
+}
+
+export default function SettingsPanel({ open, serverConfig, workspaceHistorySize, developerMode, onSave }: SettingsPanelProps) {
   const [url, setUrl] = useState(serverConfig.url);
   const [username, setUsername] = useState(serverConfig.username);
   const [password, setPassword] = useState(serverConfig.password);

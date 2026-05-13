@@ -1,4 +1,3 @@
-import React from "react";
 import { useOpenCode } from "./hooks/useOpenCode";
 import Header from "./components/Header";
 import MessagesList from "./components/MessagesList";
@@ -63,7 +62,7 @@ export default function App() {
     setWorkspaceOpen(false);
   };
 
-  const handleSend = (text) => {
+  const handleSend = (text: string) => {
     sendPrompt(text);
   };
 

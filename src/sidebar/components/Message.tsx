@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import DOMPurify from "dompurify";
+import type { Marked } from "marked";
 
-function linkify(text) {
+function linkify(text: string): string {
   return text.replace(
     /(?<!\]\()https?:\/\/[^\s<]+|(?<!\]\()(?<![\w\/])[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?/g,
     (match) => {
@@ -11,7 +12,32 @@ function linkify(text) {
   );
 }
 
-export default function Message({ msg, marked, developerMode }) {
+interface MessagePart {
+  type: string;
+  text?: string;
+}
+
+interface MessageInfo {
+  role?: string;
+  modelID?: string;
+  parts?: MessagePart[];
+}
+
+interface MessageData {
+  role?: string;
+  parts?: MessagePart[];
+  context?: string;
+  error?: boolean;
+  info?: MessageInfo;
+}
+
+interface MessageProps {
+  msg: MessageData;
+  marked: Marked;
+  developerMode?: boolean;
+}
+
+export default function Message({ msg, marked, developerMode }: MessageProps) {
   const [showContext, setShowContext] = useState(false);
   const info = msg.info || msg;
   const isUser = info.role === "user";
@@ -30,9 +56,9 @@ export default function Message({ msg, marked, developerMode }) {
     );
   }
 
-  const renderMarkdown = (text) => {
+  const renderMarkdown = (text: string): { __html: string } => {
     const rawHtml = marked.parse(linkify(text || ""));
-    return { __html: DOMPurify.sanitize(rawHtml) };
+    return { __html: DOMPurify.sanitize(rawHtml as string) };
   };
 
   return (
@@ -76,7 +102,7 @@ export default function Message({ msg, marked, developerMode }) {
   );
 }
 
-function CopyButton({ text }) {
+function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {

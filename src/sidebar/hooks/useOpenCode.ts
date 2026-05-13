@@ -4,33 +4,93 @@ import { useEvents } from "./useEvents";
 
 marked.setOptions({ breaks: true, gfm: true });
 
+interface ServerConfig {
+  url: string;
+  username: string;
+  password: string;
+}
+
+interface Message {
+  role?: string;
+  parts?: Array<{ type: string; text?: string }>;
+  context?: string;
+  error?: boolean;
+  info?: {
+    role?: string;
+    modelID?: string;
+  };
+}
+
+interface Session {
+  id: string;
+  title: string;
+}
+
+interface Tab {
+  id: number;
+  title?: string;
+  url?: string;
+  active?: boolean;
+}
+
+interface WorkingStatus {
+  type: string;
+  text: string;
+}
+
+interface PendingPermission {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  type?: string;
+  title?: string;
+  patterns?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+interface PendingQuestion {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  questions: Array<{
+    question?: string;
+    header?: string;
+    options?: Array<{
+      label: string;
+      description?: string;
+    }>;
+  }>;
+}
+
 export function useOpenCode() {
-  const portRef = useRef(null);
-  const callbacksRef = useRef({});
-  const tabContentCallbacksRef = useRef(null);
+  const portRef = useRef<browser.runtime.Port | null>(null);
+  const callbacksRef = useRef<Record<number, { resolve: (value: unknown) => void; reject: (reason: Error) => void }>>({});
+  const tabContentCallbacksRef = useRef<((tabId: number, content: { title: string; url: string; text: string }) => void) | null>(null);
   const messageApiIdRef = useRef(0);
-  const knownTabIdsRef = useRef(new Set());
+  const knownTabIdsRef = useRef(new Set<number>());
 
   const [status, setStatus] = useState("connecting");
   const [statusText, setStatusText] = useState("Connecting...");
-  const [messages, setMessages] = useState([]);
-  const [tabs, setTabs] = useState([]);
-  const [selectedTabs, setSelectedTabs] = useState(new Set());
-  const [activeTabId, setActiveTabId] = useState(null);
-  const [serverConfig, setServerConfig] = useState({
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [selectedTabs, setSelectedTabs] = useState<Set<number>>(new Set());
+  const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  const [serverConfig, setServerConfig] = useState<ServerConfig>({
     url: "http://localhost:4096",
     username: "opencode",
     password: "",
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tabsOpen, setTabsOpen] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [activeSession, setActiveSession] = useState(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [workspacePath, setWorkspacePath] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [recentWorkspaces, setRecentWorkspaces] = useState([]);
+  const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>([]);
   const [workspaceHistorySize, setWorkspaceHistorySize] = useState(5);
   const [developerMode, setDeveloperMode] = useState(false);
   const workspacePathRef = useRef(workspacePath);
@@ -41,13 +101,13 @@ export function useOpenCode() {
     developerModeRef.current = developerMode;
   }, [developerMode]);
 
-  const debug = useCallback((...args) => {
+  const debug = useCallback((...args: unknown[]) => {
     if (developerModeRef.current) {
       console.log(...args);
     }
   }, []);
 
-  const debugError = useCallback((...args) => {
+  const debugError = useCallback((...args: unknown[]) => {
     if (developerModeRef.current) {
       console.error(...args);
     }
@@ -61,20 +121,20 @@ export function useOpenCode() {
     serverConfigRef.current = serverConfig;
   }, [serverConfig]);
 
-  const getAuthHeader = useCallback(() => {
+  const getAuthHeader = useCallback((): string | null => {
     const cfg = serverConfigRef.current;
     if (!cfg.password) return null;
     const credentials = btoa(`${cfg.username}:${cfg.password}`);
     return `Basic ${credentials}`;
   }, []);
 
-  const getWorkspaceDir = useCallback(() => {
+  const getWorkspaceDir = useCallback((): string => {
     let dir = workspacePathRef.current;
     if (!dir) return "";
     return dir;
   }, []);
 
-  const apiRequest = useCallback((path, options = {}) => {
+  const apiRequest = useCallback((path: string, options: RequestInit = {}): Promise<unknown> => {
     return new Promise((resolve, reject) => {
       const id = ++messageApiIdRef.current;
       const cfg = serverConfigRef.current;
@@ -87,7 +147,7 @@ export function useOpenCode() {
         serverUrl: cfg.url,
         devMode: developerModeRef.current,
       };
-      portRef.current.postMessage(msg);
+      portRef.current?.postMessage(msg);
       callbacksRef.current[id] = { resolve, reject };
     });
   }, [getAuthHeader]);
@@ -107,11 +167,11 @@ export function useOpenCode() {
     const port = browser.runtime.connect({ name: "opencode-sidebar" });
     portRef.current = port;
 
-    port.onMessage.addListener((msg) => {
+    port.onMessage.addListener((msg: Record<string, unknown>) => {
       switch (msg.type) {
         case "health-ok":
           setStatus("connected");
-          setStatusText(`OpenCode ${msg.data.version || ""}`);
+          setStatusText(`OpenCode ${(msg.data as Record<string, string>)?.version || ""}`);
           break;
         case "health-fail":
           setSessions([]);
@@ -120,25 +180,25 @@ export function useOpenCode() {
           setStatusText("Not connected");
           break;
         case "api-response": {
-          const cb = callbacksRef.current[msg.id];
+          const cb = callbacksRef.current[msg.id as number];
           if (cb) {
             debug("[sidebar] api-response:", msg.id, JSON.stringify(msg.data).substring(0, 200));
-            cb.resolve(msg.data);
-            delete callbacksRef.current[msg.id];
+            cb.resolve(msg.data as unknown);
+            delete callbacksRef.current[msg.id as number];
           }
           break;
         }
         case "api-error": {
-          const cb = callbacksRef.current[msg.id];
+          const cb = callbacksRef.current[msg.id as number];
           if (cb) {
             debugError("[sidebar] api-error:", msg.id, msg.error);
-            cb.reject(new Error(msg.error));
-            delete callbacksRef.current[msg.id];
+            cb.reject(new Error(msg.error as string));
+            delete callbacksRef.current[msg.id as number];
           }
           break;
         }
         case "tabs-list": {
-          const tabsList = msg.tabs || [];
+          const tabsList = (msg.tabs as Tab[]) || [];
           setTabs(tabsList);
           const activeTab = tabsList.find((t) => t.active);
           if (activeTab) {
@@ -157,11 +217,11 @@ export function useOpenCode() {
           break;
         }
         case "active-tab-changed":
-          setActiveTabId(msg.tabId);
+          setActiveTabId(msg.tabId as number);
           break;
         case "tab-content":
           if (tabContentCallbacksRef.current) {
-            tabContentCallbacksRef.current(msg.tabId, msg.content);
+            tabContentCallbacksRef.current(msg.tabId as number, msg.content as { title: string; url: string; text: string });
           }
           break;
       }
@@ -176,7 +236,7 @@ export function useOpenCode() {
     });
 
     checkHealth();
-  }, [checkHealth]);
+  }, [checkHealth, debug, debugError]);
 
   const loadServerConfig = useCallback(async () => {
     try {
@@ -213,29 +273,29 @@ export function useOpenCode() {
     }
   }, []);
 
-  const getWorkspaceKey = useCallback((path) => {
+  const getWorkspaceKey = useCallback((path: string): string => {
     if (!path) return "__global__";
     return path;
   }, []);
 
-  const loadWorkspaceSessions = useCallback(async (workspacePath) => {
-    const key = getWorkspaceKey(workspacePath);
+  const loadWorkspaceSessions = useCallback(async (wp: string): Promise<string[]> => {
+    const key = getWorkspaceKey(wp);
     const storageKey = `workspaceSessions_${key}`;
     try {
       const result = await browser.storage.local.get([storageKey]);
-      return result[storageKey] || [];
+      return (result[storageKey] as string[]) || [];
     } catch (e) {
       console.warn("Failed to load workspace sessions:", e);
       return [];
     }
   }, [getWorkspaceKey]);
 
-  const saveWorkspaceSession = useCallback(async (workspacePath, sessionId) => {
-    const key = getWorkspaceKey(workspacePath);
+  const saveWorkspaceSession = useCallback(async (wp: string, sessionId: string) => {
+    const key = getWorkspaceKey(wp);
     const storageKey = `workspaceSessions_${key}`;
     try {
       const result = await browser.storage.local.get([storageKey]);
-      const existing = result[storageKey] || [];
+      const existing = (result[storageKey] as string[]) || [];
       if (!existing.includes(sessionId)) {
         await browser.storage.local.set({ [storageKey]: [...existing, sessionId] });
       }
@@ -244,21 +304,21 @@ export function useOpenCode() {
     }
   }, [getWorkspaceKey]);
 
-  const removeWorkspaceSession = useCallback(async (workspacePath, sessionId) => {
-    const key = getWorkspaceKey(workspacePath);
+  const removeWorkspaceSession = useCallback(async (wp: string, sessionId: string) => {
+    const key = getWorkspaceKey(wp);
     const storageKey = `workspaceSessions_${key}`;
     try {
       const result = await browser.storage.local.get([storageKey]);
-      const existing = result[storageKey] || [];
+      const existing = (result[storageKey] as string[]) || [];
       await browser.storage.local.set({ [storageKey]: existing.filter((id) => id !== sessionId) });
     } catch (e) {
       console.warn("Failed to remove workspace session:", e);
     }
   }, [getWorkspaceKey]);
 
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (): Promise<Session[]> => {
     try {
-      const sessionsList = await apiRequest("/session");
+      const sessionsList = await apiRequest("/session") as Session[];
       const allSessions = Array.isArray(sessionsList) ? sessionsList : [];
       const workspaceSessionIds = await loadWorkspaceSessions(workspacePathRef.current);
       const filtered = allSessions.filter((s) => workspaceSessionIds.includes(s.id));
@@ -270,8 +330,8 @@ export function useOpenCode() {
     }
   }, [apiRequest, loadWorkspaceSessions]);
 
-  const saveSettings = useCallback(async (config) => {
-    const urlChanged = config.url && config.url !== serverConfig.url;
+  const saveSettings = useCallback(async (config: Partial<ServerConfig> & { workspacePath?: string; workspaceHistorySize?: number; developerMode?: boolean }) => {
+    const urlChanged = !!config.url && config.url !== serverConfig.url;
     const pathChanged = config.workspacePath !== undefined && config.workspacePath !== workspacePath;
 
     setServerConfig({
@@ -318,17 +378,17 @@ export function useOpenCode() {
     }
   }, [checkHealth, serverConfig, workspacePath, loadSessions, recentWorkspaces, workspaceHistorySize, developerMode]);
 
-  const removeRecentWorkspace = useCallback(async (path) => {
+  const removeRecentWorkspace = useCallback(async (path: string) => {
     const updated = recentWorkspaces.filter((p) => p !== path);
     setRecentWorkspaces(updated);
     await browser.storage.local.set({ recentWorkspaces: updated });
   }, [recentWorkspaces]);
 
-  const switchSession = useCallback(async (session) => {
+  const switchSession = useCallback(async (session: Session) => {
     setMessages([]);
     setActiveSession(session);
     try {
-      const msgs = await apiRequest(`/session/${session.id}/message`);
+      const msgs = await apiRequest(`/session/${session.id}/message`) as Message[];
       setMessages(Array.isArray(msgs) ? msgs : []);
     } catch (e) {
       console.error("Failed to load messages:", e);
@@ -336,12 +396,12 @@ export function useOpenCode() {
     setSessionsOpen(false);
   }, [apiRequest]);
 
-  const createSession = useCallback(async (title) => {
+  const createSession = useCallback(async (title: string): Promise<Session | null> => {
     try {
       const session = await apiRequest("/session", {
         method: "POST",
         body: JSON.stringify({ title: title || "New Session" }),
-      });
+      }) as Session;
       if (session?.id) {
         await saveWorkspaceSession(workspacePathRef.current, session.id);
         await loadSessions();
@@ -380,7 +440,7 @@ export function useOpenCode() {
     }
   }, [activeSession, apiRequest, loadSessions, createSession]);
 
-  const renameSession = useCallback(async (session, newTitle) => {
+  const renameSession = useCallback(async (session: Session, newTitle: string) => {
     try {
       await apiRequest(`/session/${session.id}`, {
         method: "PATCH",
@@ -399,7 +459,7 @@ export function useOpenCode() {
     }
   }, [apiRequest]);
 
-  const ensureDefaultSession = useCallback(async () => {
+  const ensureDefaultSession = useCallback(async (): Promise<Session | null> => {
     if (activeSession) return activeSession;
     try {
       const list = await loadSessions();
@@ -423,7 +483,7 @@ export function useOpenCode() {
     }
   }, []);
 
-  const toggleTab = useCallback((tabId, checked) => {
+  const toggleTab = useCallback((tabId: number, checked: boolean) => {
     setSelectedTabs((prev) => {
       const next = new Set(prev);
       if (checked) next.add(tabId);
@@ -432,29 +492,29 @@ export function useOpenCode() {
     });
   }, []);
 
-  const extractSelectedTabs = useCallback(async (tabIds, activeTabId) => {
-    return new Promise((resolve) => {
+  const extractSelectedTabs = useCallback(async (tabIds: number[], activeTabId: number) => {
+    return new Promise<Array<{ title: string; url: string; text: string; isActive: boolean }>>((resolve) => {
       const pending = new Set(tabIds);
-      const contents = [];
+      const contents: Array<{ title: string; url: string; text: string; isActive: boolean }> = [];
 
-      tabContentCallbacksRef.current = (tabId, content) => {
+      tabContentCallbacksRef.current = (tId: number, content: { title: string; url: string; text: string }) => {
         if (content && content.text) {
-          contents.push({ ...content, isActive: tabId === activeTabId });
+          contents.push({ ...content, isActive: tId === activeTabId });
         }
-        pending.delete(tabId);
+        pending.delete(tId);
         if (pending.size === 0) {
           resolve(contents);
         }
       };
 
-      for (const tabId of tabIds) {
+      for (const tId of tabIds) {
         try {
-          portRef.current.postMessage({
+          portRef.current?.postMessage({
             type: "extract-tab-content",
-            tabId,
+            tabId: tId,
           });
-        } catch (e) {
-          pending.delete(tabId);
+        } catch {
+          pending.delete(tId);
           if (pending.size === 0) resolve(contents);
         }
       }
@@ -464,7 +524,7 @@ export function useOpenCode() {
   }, []);
 
   const sendPrompt = useCallback(
-    async (text, options = {}) => {
+    async (text: string, options: { session?: Session } = {}) => {
       if (!text || isStreaming) return;
 
       let session = options.session || activeSession;
@@ -474,10 +534,10 @@ export function useOpenCode() {
       }
 
       setIsStreaming(true);
-      
+
       let contextText = "You are an agent deployed as a Firefox browser extension. You are provided browser tab content as context and can be configured to modify the filesystem with-in a specific directory (workspace). Use markdown formatting. When referencing websites return their url in the response.";
       if (selectedTabs.size > 0) {
-        const tabContents = await extractSelectedTabs([...selectedTabs], activeTabId);
+        const tabContents = await extractSelectedTabs([...selectedTabs], activeTabId!);
         if (tabContents.length > 0) {
           contextText = tabContents
             .map(
@@ -496,7 +556,7 @@ export function useOpenCode() {
         contextText = `${contextText}\n\n${projectContext}`;
       }
 
-      const userMsg = {
+      const userMsg: Message = {
         role: "user",
         parts: [{ type: "text", text }],
         context: contextText,
@@ -504,10 +564,10 @@ export function useOpenCode() {
       setMessages((prev) => [...prev, userMsg]);
 
       try {
-        const body = { parts: [{ type: "text", text }] };
+        const body: Record<string, unknown> = { parts: [{ type: "text", text }] };
         if (contextText) body.system = contextText;
 
-        const fetchHeaders = { "Content-Type": "application/json" };
+        const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
         const auth = getAuthHeader();
         if (auth) fetchHeaders.Authorization = auth;
 
@@ -523,7 +583,7 @@ export function useOpenCode() {
         if (response.ok) {
           const contentType = response.headers.get("content-type") || "";
           if (contentType.includes("text/event-stream")) {
-            const reader = response.body.getReader();
+            const reader = response.body!.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
             let assistantText = "";
@@ -570,7 +630,7 @@ export function useOpenCode() {
                         }
                       }
                     }
-                  } catch (e) {
+                  } catch {
                     // skip non-JSON data lines
                   }
                 }
@@ -615,7 +675,7 @@ export function useOpenCode() {
           ...prev,
           {
             role: "assistant",
-            parts: [{ type: "text", text: `Error: ${e.message}` }],
+            parts: [{ type: "text", text: `Error: ${(e as Error).message}` }],
             error: true,
           },
         ]);
@@ -679,7 +739,7 @@ export function useOpenCode() {
     activeSession?.id || null
   );
 
-  const respondToPermission = useCallback(async (permissionId, response) => {
+  const respondToPermission = useCallback(async (permissionId: string, response: string) => {
     if (!activeSession) return;
     try {
       await apiRequest(`/session/${activeSession.id}/permissions/${permissionId}`, {
@@ -692,7 +752,7 @@ export function useOpenCode() {
     }
   }, [activeSession, apiRequest, setPendingPermission]);
 
-  const answerQuestion = useCallback(async (questionId, answers, context) => {
+  const answerQuestion = useCallback(async (questionId: string, answers: string[][], context?: { header?: string; question?: string; answer?: string; description?: string }) => {
     if (!activeSession) return;
     try {
       debug("answerQuestion:", { questionId, answers, sessionId: activeSession.id });

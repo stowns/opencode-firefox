@@ -1,6 +1,17 @@
-import React from "react";
+interface PermissionData {
+  id: string;
+  type?: string;
+  title?: string;
+  patterns?: string[];
+  metadata?: Record<string, unknown>;
+}
 
-export default function PermissionPrompt({ permission, onRespond }) {
+interface PermissionPromptProps {
+  permission: PermissionData | null;
+  onRespond: (id: string, response: string) => void;
+}
+
+export default function PermissionPrompt({ permission, onRespond }: PermissionPromptProps) {
   if (!permission) return null;
 
   const toolType = permission.type || "";
@@ -9,11 +20,11 @@ export default function PermissionPrompt({ permission, onRespond }) {
 
   let detail = "";
   if (toolType === "bash" || toolType === "exec") {
-    detail = metadata.command || metadata.cmd || "";
+    detail = (metadata.command as string) || (metadata.cmd as string) || "";
   } else if (toolType === "write" || toolType === "edit") {
-    detail = metadata.path || metadata.file || "";
+    detail = (metadata.path as string) || (metadata.file as string) || "";
   } else if (toolType === "read") {
-    detail = metadata.path || metadata.file || "";
+    detail = (metadata.path as string) || (metadata.file as string) || "";
   } else if (toolType === "external_directory") {
     const patterns = permission.patterns || [];
     detail = patterns.length > 0 ? patterns.join("\n") : "";

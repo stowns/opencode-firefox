@@ -1,10 +1,59 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Message from "./Message";
 import PermissionPrompt from "./PermissionPrompt";
 import QuestionPrompt from "./QuestionPrompt";
+import type { Marked } from "marked";
 
-export default function MessagesList({ messages, marked, workingStatus, pendingPermission, respondToPermission, pendingQuestion, answerQuestion, abortSession, developerMode }) {
-  const containerRef = useRef(null);
+interface MessageData {
+  role?: string;
+  parts?: Array<{ type: string; text?: string }>;
+  context?: string;
+  error?: boolean;
+  info?: { role?: string; modelID?: string };
+}
+
+interface WorkingStatus {
+  type: string;
+  text: string;
+}
+
+interface PendingPermission {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  type?: string;
+  title?: string;
+  patterns?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+interface PendingQuestion {
+  id: string;
+  sessionID?: string;
+  messageID?: string;
+  callID?: string;
+  questions: Array<{
+    question?: string;
+    header?: string;
+    options?: Array<{ label: string; description?: string }>;
+  }>;
+}
+
+interface MessagesListProps {
+  messages: MessageData[];
+  marked: Marked;
+  workingStatus: WorkingStatus | null;
+  pendingPermission: PendingPermission | null;
+  respondToPermission: (id: string, response: string) => void;
+  pendingQuestion: PendingQuestion | null;
+  answerQuestion: (id: string, answers: string[][], context?: { header?: string; question?: string; answer?: string; description?: string }) => void;
+  abortSession: () => void;
+  developerMode?: boolean;
+}
+
+export default function MessagesList({ messages, marked, workingStatus, pendingPermission, respondToPermission, pendingQuestion, answerQuestion, abortSession, developerMode }: MessagesListProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -18,7 +67,7 @@ export default function MessagesList({ messages, marked, workingStatus, pendingP
     const textPart = parts.find((p) => p.type === "text");
     if (msg.error) return true;
     if (info.role === "user") return true;
-    if (info.role === "assistant") return textPart && textPart.text.trim().length > 0;
+    if (info.role === "assistant") return textPart && textPart.text!.trim().length > 0;
     return false;
   });
 

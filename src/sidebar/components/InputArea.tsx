@@ -1,4 +1,16 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+
+interface InputAreaProps {
+  onSend: (text: string) => void;
+  disabled: boolean;
+  isStreaming: boolean;
+  selectedTabsCount: number;
+  onTabsClick: () => void;
+  tabsOpen: boolean;
+  onWorkspaceClick: () => void;
+  workspaceOpen: boolean;
+  workspaceName: string;
+}
 
 export default function InputArea({
   onSend,
@@ -10,9 +22,9 @@ export default function InputArea({
   onWorkspaceClick,
   workspaceOpen,
   workspaceName,
-}) {
+}: InputAreaProps) {
   const [value, setValue] = useState("");
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -33,7 +45,7 @@ export default function InputArea({
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();

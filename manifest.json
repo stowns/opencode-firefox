@@ -32,10 +32,11 @@
     "http://localhost:4096/*"
   ],
   "background": {
-    "scripts": ["src/background.js"]
+    "scripts": ["dist/background.js"],
+    "type": "module"
   },
   "sidebar_action": {
-    "default_panel": "dist/sidebar/sidebar.html",
+    "default_panel": "dist/sidebar.html",
     "default_icon": {
       "12": "icons/opencode-logo-dark-square-12.png",
       "32": "icons/opencode-logo-dark-square-32.png",
@@ -48,7 +49,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/extract.js"],
+      "js": ["dist/content/extract.js"],
       "run_at": "document_idle"
     }
   ]

@@ -1,8 +1,10 @@
+import type { Runtime, Tabs } from "firefox-webext-browser";
+
 const OPENCODE_API_URL = "http://localhost:4096";
 
-let sidebarPort = null;
+let sidebarPort: Runtime.Port | null = null;
 
-browser.runtime.onConnect.addListener((port) => {
+browser.runtime.onConnect.addListener((port: Runtime.Port) => {
   if (port.name === "opencode-sidebar") {
     sidebarPort = port;
     port.onDisconnect.addListener(() => {
@@ -12,7 +14,18 @@ browser.runtime.onConnect.addListener((port) => {
   }
 });
 
-async function handleSidebarMessage(message) {
+interface SidebarMessage {
+  type: string;
+  serverUrl?: string;
+  auth?: string;
+  path?: string;
+  options?: RequestInit;
+  devMode?: boolean;
+  id?: number;
+  tabId?: number;
+}
+
+async function handleSidebarMessage(message: SidebarMessage) {
   if (!sidebarPort) return;
 
   const serverUrl = message.serverUrl || "http://localhost:4096";
@@ -26,7 +39,7 @@ async function handleSidebarMessage(message) {
         const data = await res.json();
         sidebarPort.postMessage({ type: "health-ok", data });
       } catch (err) {
-        sidebarPort.postMessage({ type: "health-fail", error: err.message });
+        sidebarPort.postMessage({ type: "health-fail", error: (err as Error).message });
       }
       break;
 
@@ -34,10 +47,10 @@ async function handleSidebarMessage(message) {
       try {
         const { path, options = {}, devMode } = message;
         if (devMode) console.log("[background] api-request:", { path, method: options.method, body: options.body });
-        const headers = {
+        const headers: Record<string, string> = {
           "Content-Type": "application/json",
           ...(authHeader ? { Authorization: authHeader } : {}),
-          ...options.headers,
+          ...(options.headers as Record<string, string> || {}),
         };
         const res = await fetch(`${serverUrl}${path}`, { ...options, headers });
         if (devMode) console.log("[background] api-response:", { status: res.status, contentType: res.headers.get("content-type") });
@@ -55,14 +68,14 @@ async function handleSidebarMessage(message) {
         sidebarPort.postMessage({ type: "api-response", id: message.id, data });
       } catch (err) {
         console.error("[background] api-error:", err);
-        sidebarPort.postMessage({ type: "api-error", id: message.id, error: err.message });
+        sidebarPort.postMessage({ type: "api-error", id: message.id, error: (err as Error).message });
       }
       break;
 
     case "get-tabs":
       try {
         const tabs = await browser.tabs.query({});
-        const filtered = tabs.filter(t => {
+        const filtered = tabs.filter((t: Tabs.Tab) => {
           if (!t.url) return false;
           if (t.url.startsWith("about:")) return false;
           if (t.url.startsWith("moz-extension:")) return false;
@@ -70,24 +83,24 @@ async function handleSidebarMessage(message) {
         });
         sidebarPort.postMessage({ type: "tabs-list", tabs: filtered });
       } catch (err) {
-        sidebarPort.postMessage({ type: "tabs-error", error: err.message });
+        sidebarPort.postMessage({ type: "tabs-error", error: (err as Error).message });
       }
       break;
 
     case "extract-tab-content":
       try {
-        const results = await browser.tabs.sendMessage(message.tabId, {
+        const results = await browser.tabs.sendMessage(message.tabId!, {
           type: "extract-content",
         });
         sidebarPort.postMessage({ type: "tab-content", tabId: message.tabId, content: results });
       } catch (err) {
-        sidebarPort.postMessage({ type: "tab-content-error", tabId: message.tabId, error: err.message });
+        sidebarPort.postMessage({ type: "tab-content-error", tabId: message.tabId, error: (err as Error).message });
       }
       break;
   }
 }
 
-async function checkHealth() {
+async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${OPENCODE_API_URL}/global/health`);
     return res.ok;
@@ -96,13 +109,13 @@ async function checkHealth() {
   }
 }
 
-let tabUpdateTimer = null;
+let tabUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function sendTabsToSidebar() {
   if (!sidebarPort) return;
   try {
     const tabs = await browser.tabs.query({});
-    const filtered = tabs.filter(t => {
+    const filtered = tabs.filter((t: Tabs.Tab) => {
       if (!t.url) return false;
       if (t.url.startsWith("about:")) return false;
       if (t.url.startsWith("moz-extension:")) return false;
@@ -120,18 +133,13 @@ function scheduleTabUpdate() {
 }
 
 browser.tabs.onRemoved.addListener(scheduleTabUpdate);
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+browser.tabs.onUpdated.addListener((_tabId: number, changeInfo: Tabs.OnUpdatedChangeInfoType, _tab: Tabs.Tab) => {
   if (changeInfo.status === "complete") {
     scheduleTabUpdate();
   }
 });
 
-browser.tabs.onActivated.addListener((activeInfo) => {
-  if (!sidebarPort) return;
-  sidebarPort.postMessage({ type: "active-tab-changed", tabId: activeInfo.tabId });
-});
-
-browser.windows.onFocusChanged.addListener(async (windowId) => {
+browser.windows.onFocusChanged.addListener(async (windowId: number) => {
   if (!sidebarPort || windowId < 0) return;
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
