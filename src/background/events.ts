@@ -1,4 +1,5 @@
 import type { Runtime } from "firefox-webext-browser";
+import { eventsDebug } from "../debug";
 
 let sseAbortController: AbortController | null = null;
 let subscribedSessionId: string | null = null;
@@ -9,6 +10,7 @@ export function setSidebarPort(port: Runtime.Port | null) {
 }
 
 export function subscribeEvents(sessionId: string) {
+  eventsDebug("subscribe-events: session=%s", sessionId);
   subscribedSessionId = sessionId;
   if (!sseAbortController) {
     connectSSE();
@@ -16,6 +18,7 @@ export function subscribeEvents(sessionId: string) {
 }
 
 export function unsubscribeEvents() {
+  eventsDebug("unsubscribe-events");
   subscribedSessionId = null;
 }
 
@@ -27,6 +30,8 @@ function connectSSE() {
   const controller = new AbortController();
   sseAbortController = controller;
 
+  eventsDebug("connecting to SSE stream: %s/global/event", "http://localhost:4096");
+
   const readStream = async () => {
     try {
       const headers: Record<string, string> = { Accept: "text/event-stream" };
@@ -36,7 +41,12 @@ function connectSSE() {
         signal: controller.signal,
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        eventsDebug("SSE connection failed: status=%d", response.status);
+        return;
+      }
+
+      eventsDebug("SSE connected");
 
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -63,6 +73,7 @@ function connectSSE() {
       }
     } catch (e) {
       if ((e as Error).name !== "AbortError" && !controller.signal.aborted) {
+        eventsDebug("SSE error, reconnecting in 3s: %s", (e as Error).message);
         setTimeout(connectSSE, 3000);
       }
     }
@@ -81,10 +92,12 @@ function forwardEvent(event: unknown) {
   const sessionId = props.sessionID as string | undefined;
   if (sessionId && sessionId !== subscribedSessionId) return;
 
+  eventsDebug("forwarding event: type=%s", payload.type);
   sidebarPort.postMessage({ type: "event", event });
 }
 
 export function abortSSE() {
+  eventsDebug("abort-SSE");
   if (sseAbortController) {
     sseAbortController.abort();
     sseAbortController = null;

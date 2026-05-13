@@ -1,5 +1,6 @@
 import type { Runtime } from "firefox-webext-browser";
 import type { SidebarMessage } from "./types";
+import { promptDebug } from "../debug";
 
 interface ActivePrompt {
   id: number;
@@ -10,6 +11,7 @@ let activePrompt: ActivePrompt | null = null;
 
 export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessage) {
   if (activePrompt) {
+    promptDebug("aborting previous prompt");
     activePrompt.controller.abort();
     activePrompt = null;
   }
@@ -23,6 +25,8 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
   const text = message.text || "";
   const system = message.system;
   const authHeader = message.auth;
+
+  promptDebug("send-prompt: session=%s id=%d", sessionId, promptId);
 
   const body: Record<string, unknown> = { parts: [{ type: "text", text }] };
   if (system) body.system = system;
@@ -39,12 +43,14 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
     });
 
     if (!response.ok) {
+      promptDebug("prompt error: status=%d", response.status);
       port.postMessage({ type: "prompt-error", id: promptId, error: `Failed to get response (${response.status})` });
       activePrompt = null;
       return;
     }
 
     const contentType = response.headers.get("content-type") || "";
+    promptDebug("response content-type: %s", contentType);
     if (contentType.includes("text/event-stream")) {
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -70,11 +76,13 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
 
               if (payloadType === "message.updated" && props?.info?.modelID) {
                 modelID = props.info.modelID;
+                promptDebug("modelID: %s", modelID);
               }
 
               if (payloadType === "message.part.updated" && props?.part) {
                 const part = props.part;
                 if (part.type === "step-finish") {
+                  promptDebug("step-finish, sending prompt-done");
                   port.postMessage({ type: "prompt-done", id: promptId, modelID });
                 }
               }
@@ -85,13 +93,16 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
         }
       }
 
+      promptDebug("stream ended, sending prompt-done modelID=%s", modelID);
       port.postMessage({ type: "prompt-done", id: promptId, modelID });
     } else {
       const data = await response.json();
+      promptDebug("non-SSE response, sending prompt-done");
       port.postMessage({ type: "prompt-done", id: promptId, data });
     }
   } catch (e) {
     if ((e as Error).name !== "AbortError") {
+      promptDebug("prompt exception: %s", (e as Error).message);
       port.postMessage({ type: "prompt-error", id: promptId, error: (e as Error).message });
     }
   }
@@ -101,6 +112,7 @@ export async function handleSendPrompt(port: Runtime.Port, message: SidebarMessa
 
 export function abortPrompt() {
   if (activePrompt) {
+    promptDebug("abort-prompt called");
     activePrompt.controller.abort();
     activePrompt = null;
   }

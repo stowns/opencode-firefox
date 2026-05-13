@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { marked } from "marked";
+import { sidebarDebug, enableDebug, disableDebug } from "../../debug";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -114,11 +115,17 @@ export function useOpenCode() {
 
   useEffect(() => {
     developerModeRef.current = developerMode;
+    if (developerMode) {
+      enableDebug();
+    } else {
+      disableDebug();
+    }
+    portRef.current?.postMessage({ type: "set-developer-mode", enabled: developerMode });
   }, [developerMode]);
 
   const debug = useCallback((...args: unknown[]) => {
     if (developerModeRef.current) {
-      console.log(...args);
+      sidebarDebug(...args);
     }
   }, []);
 
@@ -164,7 +171,6 @@ export function useOpenCode() {
         options,
         auth: getAuthHeader(),
         serverUrl: cfg.url,
-        devMode: developerModeRef.current,
       };
       portRef.current?.postMessage(msg);
       callbacksRef.current[id] = { resolve, reject };
@@ -826,7 +832,6 @@ export function useOpenCode() {
         text,
         body,
         system: contextText || undefined,
-        devMode: developerModeRef.current,
       });
     },
     [
@@ -989,5 +994,6 @@ export function useOpenCode() {
     abortSession,
     marked,
     saveSettings,
+    debug,
   };
 }

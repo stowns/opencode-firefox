@@ -4,6 +4,7 @@ import { handleHealthCheck, handleApiRequest } from "./api";
 import { subscribeEvents, unsubscribeEvents, setSidebarPort as setEventsPort, abortSSE } from "./events";
 import { handleSendPrompt, abortPrompt } from "./prompt";
 import { setSidebarPort as setTabsPort, handleGetTabs, handleExtractTabContent, sendTabs } from "./tabs";
+import { enableDebug, disableDebug } from "../debug";
 
 let sidebarPort: Runtime.Port | null = null;
 
@@ -70,6 +71,14 @@ async function handleMessage(port: Runtime.Port, message: SidebarMessage) {
 
     case "abort-prompt":
       abortPrompt();
+      break;
+
+    case "set-developer-mode":
+      if (message.enabled) {
+        enableDebug();
+      } else {
+        disableDebug();
+      }
       break;
   }
 }

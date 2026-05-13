@@ -4,13 +4,13 @@ export interface SidebarMessage {
   auth?: string;
   path?: string;
   options?: RequestInit;
-  devMode?: boolean;
   id?: number;
   tabId?: number;
   sessionId?: string;
   text?: string;
   body?: Record<string, unknown>;
   system?: string;
+  enabled?: boolean;
 }
 
 export interface BackgroundMessage {
