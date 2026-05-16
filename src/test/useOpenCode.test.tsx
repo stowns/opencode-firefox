@@ -115,4 +115,44 @@ describe("useOpenCode tab management", () => {
 
     expect(result.current.selectedTabs.size).toBe(0);
   });
+
+  it("does not re-select all tabs when tabs-list is received after initial load", async () => {
+    const { result } = renderHook(() => useOpenCode());
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    act(() => {
+      portListeners.onMessage?.({
+        type: "tabs-list",
+        tabs: [
+          { id: 1, url: "https://example.com", title: "Tab 1" },
+          { id: 2, url: "https://test.com", title: "Tab 2" },
+          { id: 3, url: "https://other.com", title: "Tab 3" },
+        ],
+      });
+    });
+
+    expect(result.current.selectedTabs.size).toBe(3);
+
+    act(() => {
+      result.current.toggleTab(2, false);
+    });
+
+    expect(result.current.selectedTabs.has(2)).toBe(false);
+    expect(result.current.selectedTabs.size).toBe(2);
+
+    act(() => {
+      portListeners.onMessage?.({
+        type: "tabs-list",
+        tabs: [
+          { id: 1, url: "https://example.com", title: "Tab 1" },
+          { id: 2, url: "https://test.com", title: "Tab 2" },
+          { id: 3, url: "https://other.com", title: "Tab 3" },
+        ],
+      });
+    });
+
+    expect(result.current.selectedTabs.has(2)).toBe(false);
+    expect(result.current.selectedTabs.size).toBe(2);
+  });
 });

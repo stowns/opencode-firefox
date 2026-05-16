@@ -428,12 +428,17 @@ export function useOpenCode() {
             setActiveTabId(activeTab.id);
           }
           const currentIds = new Set(tabsList.map((t) => t.id));
+          const isFirstLoad = knownTabIdsRef.current.size === 0;
           const newTabIds = tabsList.filter((t) => !knownTabIdsRef.current.has(t.id)).map((t) => t.id);
           setSelectedTabs((prev) => {
             const next = new Set(prev);
-            newTabIds.forEach((id) => next.add(id));
             for (const id of prev) {
               if (!currentIds.has(id)) next.delete(id);
+            }
+            if (isFirstLoad && prev.size === 0) {
+              currentIds.forEach((id) => next.add(id));
+            } else if (!isFirstLoad) {
+              newTabIds.forEach((id) => next.add(id));
             }
             return next;
           });
@@ -528,6 +533,7 @@ export function useOpenCode() {
         "recentWorkspaces",
         "workspaceHistorySize",
         "developerMode",
+        "selectedTabs",
       ]);
       if (stored.serverUrl || stored.serverUsername || stored.serverPassword) {
         setServerConfig({
@@ -547,6 +553,9 @@ export function useOpenCode() {
       }
       if (stored.developerMode !== undefined) {
         setDeveloperMode(stored.developerMode);
+      }
+      if (stored.selectedTabs) {
+        setSelectedTabs(new Set(stored.selectedTabs as number[]));
       }
     } catch (e) {
       console.warn("Failed to load server config:", e);
@@ -937,6 +946,10 @@ export function useOpenCode() {
       unsubscribeEvents();
     };
   }, [activeSession?.id, subscribeEvents, unsubscribeEvents]);
+
+  useEffect(() => {
+    browser.storage.local.set({ selectedTabs: [...selectedTabs] }).catch((e) => console.warn("Failed to save selected tabs:", e));
+  }, [selectedTabs]);
 
   const respondToPermission = useCallback(async (permissionId: string, response: string) => {
     if (!activeSession) return;
