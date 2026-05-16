@@ -161,7 +161,7 @@ html, body {
 }
 
 #btn-workspace-set {
-  background: var(--accent);
+  background: var(--blue);
   border: none;
   color: white;
   padding: 4px 12px;
@@ -171,7 +171,7 @@ html, body {
 }
 
 #btn-workspace-set:hover {
-  background: var(--accent-hover);
+  background: var(--blue-hover);
 }
 
 #btn-workspace-set:disabled {
@@ -449,9 +449,9 @@ html, body {
 }
 
 .message-copy-btn {
-  background: var(--bg-tertiary);
+  background: var(--blue);
   border: none;
-  color: var(--text-secondary);
+  color: white;
   padding: 4px 6px;
   border-radius: 3px;
   font-size: 11px;
@@ -467,8 +467,7 @@ html, body {
 }
 
 .message-copy-btn:hover {
-  background: var(--accent);
-  color: white;
+  background: var(--blue-hover);
 }
 
 .message-context-wrapper {
@@ -481,9 +480,9 @@ html, body {
 }
 
 .message-context-btn {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+  background: var(--blue);
+  border: none;
+  color: white;
   padding: 2px 8px;
   border-radius: 3px;
   font-size: 11px;
@@ -491,8 +490,7 @@ html, body {
 }
 
 .message-context-btn:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
+  background: var(--blue-hover);
 }
 
 .message-context {
@@ -550,9 +548,9 @@ html, body {
 }
 
 .btn-cancel {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+  background: var(--blue);
+  border: none;
+  color: white;
   padding: 2px 8px;
   border-radius: 3px;
   font-size: 10px;
@@ -561,9 +559,7 @@ html, body {
 }
 
 .btn-cancel:hover {
-  background: var(--error);
-  color: white;
-  border-color: var(--error);
+  background: var(--blue-hover);
 }
 
 /* Input area */
@@ -838,7 +834,9 @@ html, body {
 }
 
 .permission-actions button {
+  background: var(--blue);
   border: none;
+  color: white;
   padding: 4px 14px;
   border-radius: 4px;
   font-size: 12px;
@@ -846,34 +844,8 @@ html, body {
   cursor: pointer;
 }
 
-.permission-actions button.allow {
-  background: var(--success);
-  color: white;
-}
-
-.permission-actions button.allow:hover {
-  background: #16a34a;
-}
-
-.permission-actions button.always {
-  background: var(--accent);
-  color: white;
-}
-
-.permission-actions button.always:hover {
-  background: var(--accent-hover);
-}
-
-.permission-actions button.reject {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-.permission-actions button.reject:hover {
-  background: var(--error);
-  color: white;
-  border-color: var(--error);
+.permission-actions button:hover {
+  background: var(--blue-hover);
 }
 
 /* Question prompt */
