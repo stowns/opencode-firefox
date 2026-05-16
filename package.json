@@ -11,7 +11,8 @@
     "build": "vite build && npx web-ext build --overwrite-dest",
     "build:xpi": "npm run build && cp web-ext-artifacts/opencode-*.zip web-ext-artifacts/opencode.xpi",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "zip": "zip -r opencode-firefox.zip . -x '.git/*' 'dist/*' 'example-events/*' 'node_modules/*' 'web-ext-artifacts/*' '.gitignore' 'AGENTS.md'"
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.14.0",

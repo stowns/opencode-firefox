@@ -12,6 +12,7 @@ interface TabContextPanelProps {
   activeTabId: number | null;
   onToggleTab: (tabId: number, checked: boolean) => void;
   onRefresh: () => void;
+  onDeselectAll: () => void;
 }
 
 export default function TabContextPanel({
@@ -21,6 +22,7 @@ export default function TabContextPanel({
   activeTabId,
   onToggleTab,
   onRefresh,
+  onDeselectAll,
 }: TabContextPanelProps) {
   if (!open) return null;
 
@@ -28,7 +30,10 @@ export default function TabContextPanel({
     <div id="tab-context-panel" className="panel">
       <div className="panel-header">
         <span>Tab Context</span>
-        <button className="btn-primary" onClick={onRefresh}>Refresh</button>
+        <div className="panel-header-actions">
+          <button className="btn-primary" onClick={onDeselectAll} disabled={selectedTabs.size === 0}>Deselect All</button>
+          <button className="btn-primary" onClick={onRefresh}>Refresh</button>
+        </div>
       </div>
       <div id="tabs-list">
         {tabs.map((tab) => (

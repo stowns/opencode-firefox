@@ -91,4 +91,28 @@ describe("useOpenCode tab management", () => {
     expect(result.current.selectedTabs.size).toBe(2);
     expect(result.current.selectedTabs.has(2)).toBe(true);
   });
+
+  it("clears all selected tabs when clearSelectedTabs is called", async () => {
+    const { result } = renderHook(() => useOpenCode());
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    act(() => {
+      portListeners.onMessage?.({
+        type: "tabs-list",
+        tabs: [
+          { id: 1, url: "https://example.com", title: "Tab 1" },
+          { id: 2, url: "https://test.com", title: "Tab 2" },
+        ],
+      });
+    });
+
+    expect(result.current.selectedTabs.size).toBe(2);
+
+    act(() => {
+      result.current.clearSelectedTabs();
+    });
+
+    expect(result.current.selectedTabs.size).toBe(0);
+  });
 });

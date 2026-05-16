@@ -23,6 +23,7 @@ export default function App() {
     setWorkspaceOpen,
     loadTabs,
     toggleTab,
+    clearSelectedTabs,
     sendPrompt,
     workingStatus,
     pendingPermission,
@@ -96,6 +97,7 @@ export default function App() {
         activeTabId={activeTabId}
         onToggleTab={toggleTab}
         onRefresh={loadTabs}
+        onDeselectAll={clearSelectedTabs}
       />
       <InputArea
         onSend={handleSend}

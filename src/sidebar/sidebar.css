@@ -781,10 +781,21 @@ html, body {
   background: var(--blue-hover);
 }
 
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .panel-header .btn-primary {
   padding: 2px 8px;
   font-size: 11px;
   align-self: center;
+}
+
+.panel-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 /* Permission prompt */

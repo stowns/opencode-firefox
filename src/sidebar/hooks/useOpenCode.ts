@@ -772,6 +772,10 @@ export function useOpenCode() {
     });
   }, []);
 
+  const clearSelectedTabs = useCallback(() => {
+    setSelectedTabs(new Set());
+  }, []);
+
   const extractSelectedTabs = useCallback(async (tabIds: number[], activeTabId: number) => {
     return new Promise<Array<{ title: string; url: string; text: string; isActive: boolean }>>((resolve) => {
       const pending = new Set(tabIds);
@@ -1013,6 +1017,7 @@ export function useOpenCode() {
     clearSession,
     loadTabs,
     toggleTab,
+    clearSelectedTabs,
     sendPrompt,
     workingStatus,
     pendingPermission,
