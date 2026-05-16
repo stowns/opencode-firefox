@@ -1,5 +1,4 @@
 import type { Runtime, Tabs } from "firefox-webext-browser";
-import type { SidebarToBackground } from "../shared/protocol";
 import { MSG_TABS_LIST, MSG_TABS_ERROR, MSG_TAB_CONTENT, MSG_TAB_CONTENT_ERROR, MSG_ACTIVE_TAB_CHANGED } from "../shared/protocol";
 
 let tabUpdateTimer: ReturnType<typeof setTimeout> | null = null;
