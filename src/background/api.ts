@@ -1,4 +1,4 @@
-import type { Runtime } from "firefox-webext-browser";
+import type { Runtime } from "webextension-polyfill";
 import type { SidebarToBackground } from "../shared/protocol";
 import { MSG_HEALTH_CHECK, MSG_API_REQUEST, MSG_HEALTH_OK, MSG_HEALTH_FAIL, MSG_API_RESPONSE, MSG_API_ERROR } from "../shared/protocol";
 import { apiDebug } from "../debug";

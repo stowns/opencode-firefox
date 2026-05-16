@@ -1,4 +1,6 @@
-import type { Runtime, Tabs } from "firefox-webext-browser";
+import browser from "../browser";
+import type { Runtime, Tabs } from "webextension-polyfill";
+import { isInternalUrl } from "../browser/tabs";
 import { MSG_TABS_LIST, MSG_TABS_ERROR, MSG_TAB_CONTENT, MSG_TAB_CONTENT_ERROR, MSG_ACTIVE_TAB_CHANGED } from "../shared/protocol";
 
 let tabUpdateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -11,8 +13,7 @@ export function setSidebarPort(port: Runtime.Port | null) {
 function filterTabs(tabs: Tabs.Tab[]): Tabs.Tab[] {
   return tabs.filter((t) => {
     if (!t.url) return false;
-    if (t.url.startsWith("about:")) return false;
-    if (t.url.startsWith("moz-extension:")) return false;
+    if (isInternalUrl(t.url)) return false;
     return true;
   });
 }
@@ -45,8 +46,17 @@ export async function handleExtractTabContent(port: Runtime.Port, tabId: number)
   try {
     const results = await browser.tabs.sendMessage(tabId, { type: "extract-content" });
     port.postMessage({ type: MSG_TAB_CONTENT, tabId, content: results });
-  } catch (err) {
-    port.postMessage({ type: MSG_TAB_CONTENT_ERROR, tabId, error: (err as Error).message });
+  } catch {
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId },
+        files: ["content/extract.js"],
+      });
+      const results = await browser.tabs.sendMessage(tabId, { type: "extract-content" });
+      port.postMessage({ type: MSG_TAB_CONTENT, tabId, content: results });
+    } catch (err) {
+      port.postMessage({ type: MSG_TAB_CONTENT_ERROR, tabId, error: (err as Error).message });
+    }
   }
 }
 

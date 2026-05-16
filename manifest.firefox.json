@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "OpenCode",
+  "version": "1.1.1",
+  "description": "Integrate OpenCode AI agent into your browser",
+  "icons": {
+    "12": "icons/opencode-logo-dark-square-12.png",
+    "32": "icons/opencode-logo-dark-square-32.png",
+    "48": "icons/opencode-logo-dark-square-48.png",
+    "64": "icons/opencode-logo-dark-square-64.png",
+    "128": "icons/opencode-logo-dark-square-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "opencode@opencode.ai",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:4096/*"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "sidebar_action": {
+    "default_panel": "sidebar.html",
+    "default_icon": {
+      "12": "icons/opencode-logo-dark-square-12.png",
+      "32": "icons/opencode-logo-dark-square-32.png",
+      "48": "icons/opencode-logo-dark-square-48.png",
+      "64": "icons/opencode-logo-dark-square-64.png",
+      "128": "icons/opencode-logo-dark-square-128.png"
+    },
+    "open_at_install": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/extract.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

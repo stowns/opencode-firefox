@@ -1,4 +1,4 @@
-import type { Runtime } from "firefox-webext-browser";
+import type { Runtime } from "webextension-polyfill";
 import type { SidebarToBackground } from "../shared/protocol";
 import { MSG_SEND_PROMPT, MSG_PROMPT_DONE, MSG_PROMPT_ERROR } from "../shared/protocol";
 import { promptDebug } from "../debug";

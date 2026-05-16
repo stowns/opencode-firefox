@@ -1,4 +1,4 @@
-import type { Runtime } from "firefox-webext-browser";
+import type { Runtime } from "webextension-polyfill";
 import { MSG_EVENT } from "../shared/protocol";
 import { eventsDebug } from "../debug";
 

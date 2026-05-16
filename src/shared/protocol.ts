@@ -33,12 +33,19 @@ export type SidebarToBackground =
   | { type: typeof MSG_ABORT_PROMPT }
   | { type: typeof MSG_SET_DEVELOPER_MODE; enabled: boolean };
 
+export type TabInfo = {
+  id?: number;
+  title?: string;
+  url?: string;
+  active?: boolean;
+};
+
 export type BackgroundToSidebar =
   | { type: typeof MSG_HEALTH_OK; data: Record<string, unknown> }
   | { type: typeof MSG_HEALTH_FAIL; error: string }
   | { type: typeof MSG_API_RESPONSE; id: number; data: unknown }
   | { type: typeof MSG_API_ERROR; id: number; error: string }
-  | { type: typeof MSG_TABS_LIST; tabs: browser.tabs.Tab[] }
+  | { type: typeof MSG_TABS_LIST; tabs: TabInfo[] }
   | { type: typeof MSG_TABS_ERROR; error: string }
   | { type: typeof MSG_ACTIVE_TAB_CHANGED; tabId: number }
   | { type: typeof MSG_TAB_CONTENT; tabId: number; content: { title: string; url: string; text: string } }

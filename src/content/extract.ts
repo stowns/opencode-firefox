@@ -4,11 +4,14 @@ interface PageContent {
   text: string;
 }
 
-browser.runtime.onMessage.addListener((request: { type: string }, _sender: unknown, sendResponse: (response: PageContent) => void) => {
+const api = typeof browser !== "undefined" ? browser : chrome;
+
+api.runtime.onMessage.addListener((request: { type: string }, _sender: unknown, sendResponse: (response: PageContent) => void) => {
   if (request.type === "extract-content") {
     const content = extractPageContent();
     sendResponse(content);
   }
+  return true;
 });
 
 function extractPageContent(): PageContent {

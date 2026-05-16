@@ -1,18 +1,25 @@
 {
-  "name": "opencode-firefox",
+  "name": "opencode-extension",
   "version": "1.1.1",
-  "description": "Firefox extension integrating OpenCode AI agent",
+  "description": "Browser extension integrating OpenCode AI agent",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "web-ext": "npx web-ext run --devtools",
-    "lint": "npx web-ext lint",
-    "build": "vite build && npx web-ext build --overwrite-dest",
-    "build:xpi": "npm run build && cp web-ext-artifacts/opencode-*.zip web-ext-artifacts/opencode.xpi",
+    "dev:firefox": "BROWSER=firefox vite build --watch",
+    "dev:chrome": "BROWSER=chrome vite build --watch",
+    "dev:all": "concurrently \"npm run dev:firefox\" \"npm run dev:chrome\"",
+    "dev": "npm run dev:all",
+    "web-ext": "npx web-ext run --source-dir dist/firefox --devtools",
+    "lint": "npx web-ext lint --source-dir dist/firefox",
+    "build:firefox": "BROWSER=firefox vite build && npx web-ext build --source-dir dist/firefox --overwrite-dest",
+    "build:chrome": "BROWSER=chrome vite build && npm run package:chrome",
+    "build:all": "concurrently \"npm run build:firefox\" \"npm run build:chrome\"",
+    "build": "npm run build:all",
+    "package:chrome": "cp manifest.chrome.json dist/chrome/manifest.json && rm -f opencode-chrome.zip && zip -r opencode-chrome.zip dist/chrome/",
+    "build:xpi": "npm run build:firefox && cp web-ext-artifacts/opencode-*.zip web-ext-artifacts/opencode.xpi",
     "test": "vitest run",
     "test:watch": "vitest",
-    "zip": "zip -r opencode-firefox.zip . -x '.git/*' 'dist/*' 'example-events/*' 'node_modules/*' 'web-ext-artifacts/*' '.gitignore' 'AGENTS.md'"
+    "zip": "zip -r opencode-firefox-src.zip . -x '.git/*' 'dist/*' 'example-events/*' 'node_modules/*' 'web-ext-artifacts/*' '.gitignore' 'AGENTS.md'"
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.14.0",
@@ -20,15 +27,17 @@
     "dompurify": "^3.4.2",
     "marked": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "webextension-polyfill": "^0.12.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/debug": "^4.1.13",
-    "@types/firefox-webext-browser": "^143.0.0",
+    "concurrently": "^9.2.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/webextension-polyfill": "^0.12.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",

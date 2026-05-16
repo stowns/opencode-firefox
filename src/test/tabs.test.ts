@@ -4,7 +4,8 @@ import {
   sendTabs,
   scheduleTabUpdate,
 } from "../background/tabs";
-import type { Runtime, Tabs } from "firefox-webext-browser";
+import browser from "../browser";
+import type { Runtime, Tabs } from "webextension-polyfill";
 
 describe("tabs background module", () => {
   let mockPort: Partial<Runtime.Port>;
@@ -97,7 +98,7 @@ describe("tabs background module", () => {
     it("sends active-tab-changed on tab activation", async () => {
       setupTabListeners();
 
-      const onActivated = browser.tabs.onActivated.addListener.mock.calls[0][0];
+      const onActivated = (browser.tabs.onActivated.addListener as ReturnType<typeof vi.fn>).mock.calls[0][0];
       await onActivated({ tabId: 42, windowId: 1 } as Tabs.OnActivatedActiveInfoType);
 
       expect(mockPort.postMessage).toHaveBeenCalledWith({
@@ -113,8 +114,7 @@ describe("tabs background module", () => {
 
       setupTabListeners();
 
-      const onFocusChanged =
-        browser.windows.onFocusChanged.addListener.mock.calls[0][0];
+      const onFocusChanged = (browser.windows.onFocusChanged.addListener as ReturnType<typeof vi.fn>).mock.calls[0][0];
       await onFocusChanged(1);
 
       expect(mockPort.postMessage).toHaveBeenCalledWith({
@@ -126,8 +126,7 @@ describe("tabs background module", () => {
     it("does not send active-tab-changed on window focus change with invalid windowId", async () => {
       setupTabListeners();
 
-      const onFocusChanged =
-        browser.windows.onFocusChanged.addListener.mock.calls[0][0];
+      const onFocusChanged = (browser.windows.onFocusChanged.addListener as ReturnType<typeof vi.fn>).mock.calls[0][0];
       await onFocusChanged(-1);
 
       expect(mockPort.postMessage).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
-import type { Runtime } from "firefox-webext-browser";
+import type { Runtime } from "webextension-polyfill";
+import browser from "../browser";
 import type { SidebarToBackground } from "../shared/protocol";
 import {
   MSG_HEALTH_CHECK,

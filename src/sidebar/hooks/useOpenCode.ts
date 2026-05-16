@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { marked } from "marked";
 import { sidebarDebug, enableDebug, disableDebug } from "../../debug";
+import browser, { getBrowserType } from "../../browser";
 import type { SidebarToBackground, BackgroundToSidebar } from "../../shared/protocol";
 import {
   MSG_HEALTH_CHECK,
@@ -104,6 +105,7 @@ export function useOpenCode() {
   const tabContentCallbacksRef = useRef<((tabId: number, content: { title: string; url: string; text: string }) => void) | null>(null);
   const messageApiIdRef = useRef(0);
   const knownTabIdsRef = useRef(new Set<number>());
+  const initialConfigLoadedRef = useRef(false);
   const promptIdRef = useRef(0);
   const assistantTextRef = useRef("");
   const promptModelIdRef = useRef("");
@@ -453,6 +455,11 @@ export function useOpenCode() {
             tabContentCallbacksRef.current(msg.tabId as number, msg.content as { title: string; url: string; text: string });
           }
           break;
+        case MSG_TAB_CONTENT_ERROR:
+          if (tabContentCallbacksRef.current) {
+            tabContentCallbacksRef.current(msg.tabId as number, { title: "", url: "", text: "" });
+          }
+          break;
         case MSG_EVENT:
           handleSSEEvent(msg.event as EventData);
           break;
@@ -523,7 +530,7 @@ export function useOpenCode() {
     checkHealth();
   }, [checkHealth, debug, debugError, handleSSEEvent]);
 
-  const loadServerConfig = useCallback(async () => {
+  const loadExtensionState = useCallback(async () => {
     try {
       const stored = await browser.storage.local.get([
         "serverUrl",
@@ -557,8 +564,10 @@ export function useOpenCode() {
       if (stored.selectedTabs) {
         setSelectedTabs(new Set(stored.selectedTabs as number[]));
       }
+      initialConfigLoadedRef.current = true;
     } catch (e) {
       console.warn("Failed to load server config:", e);
+      initialConfigLoadedRef.current = true;
     }
   }, []);
 
@@ -827,7 +836,7 @@ export function useOpenCode() {
       assistantTextRef.current = "";
       promptModelIdRef.current = "";
 
-      let contextText = "You are an agent deployed as a Firefox browser extension. You are provided browser tab content as context and can be configured to modify the filesystem with-in a specific directory (workspace). Use markdown formatting. When referencing websites return their url in the response.";
+      let contextText = `You are an agent deployed as a ${getBrowserType() === "firefox" ? "Firefox" : "Chrome"} browser extension. You are provided browser tab content as context and can be configured to modify the filesystem with-in a specific directory (workspace). Use markdown formatting. When referencing websites return their url in the response.`;
       if (selectedTabs.size > 0) {
         const tabContents = await extractSelectedTabs([...selectedTabs], activeTabId!);
         if (tabContents.length > 0) {
@@ -900,9 +909,9 @@ export function useOpenCode() {
   }, []);
 
   useEffect(() => {
-    loadServerConfig();
+    loadExtensionState();
     connectPort();
-  }, [loadServerConfig, connectPort]);
+  }, [loadExtensionState, connectPort]);
 
   useEffect(() => {
     if (status === "connected") {
@@ -948,6 +957,7 @@ export function useOpenCode() {
   }, [activeSession?.id, subscribeEvents, unsubscribeEvents]);
 
   useEffect(() => {
+    if (!initialConfigLoadedRef.current) return;
     browser.storage.local.set({ selectedTabs: [...selectedTabs] }).catch((e) => console.warn("Failed to save selected tabs:", e));
   }, [selectedTabs]);
 
