@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenCode",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Integrate OpenCode AI agent into your browser",
   "icons": {
     "12": "icons/opencode-logo-dark-square-12.png",

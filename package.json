@@ -1,6 +1,6 @@
 {
   "name": "opencode-firefox",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Firefox extension integrating OpenCode AI agent",
   "private": true,
   "type": "module",

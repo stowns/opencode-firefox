@@ -1,5 +1,19 @@
 # Release Notes
 
+## 1.1.1 (2026-05-15)
+
+### Features
+- Tab selection persistence — selected tabs are now saved to `browser.storage.local` and persist between sidebar open/close cycles
+- Deselect All button — quick button in the Tab Context panel to clear all tab selections (disabled when no tabs are selected)
+- Auto-select only on first load — tabs are no longer re-selected on subsequent sidebar opens; only genuinely new tabs are auto-added
+
+### Improvements
+- Unified button styling — Copy, View Context, Cancel, and permission buttons in MessagesList now use consistent blue styling
+- Workspace "Set" button updated to match blue button theme
+- Added `npm run zip` script for packaging source (excludes build artifacts and dev files)
+
+---
+
 ## 1.0.1 (2026-05-13)
 
 ### Features
