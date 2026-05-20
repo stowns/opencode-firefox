@@ -59,17 +59,6 @@ export default function SettingsPanel({ open, serverConfig, workspaceHistorySize
           />
         </div>
         <div className="setting-row">
-          <label htmlFor="setting-history-size">Workspace history size</label>
-          <input
-            type="number"
-            id="setting-history-size"
-            min="0"
-            max="50"
-            value={historySize}
-            onChange={(e) => setHistorySize(e.target.value)}
-          />
-        </div>
-        <div className="setting-row">
           <label htmlFor="setting-password">Server Password</label>
           <input
             type="password"
@@ -97,6 +86,17 @@ export default function SettingsPanel({ open, serverConfig, workspaceHistorySize
             placeholder="http://localhost:4096"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+          />
+        </div>
+        <div className="setting-row">
+          <label htmlFor="setting-history-size">Workspace History Size</label>
+          <input
+            type="number"
+            id="setting-history-size"
+            min="0"
+            max="50"
+            value={historySize}
+            onChange={(e) => setHistorySize(e.target.value)}
           />
         </div>
         <button id="btn-save-settings" className="btn-primary" onClick={handleSave}>
