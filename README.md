@@ -1,6 +1,6 @@
 # OpenCode Firefox Extension
 
-A Firefox sidebar extension that integrates with [OpenCode](https://opencode.ai). Helpful for adding browser context to prompts.
+A Chrome and Firefox sidebar extension that integrates with [OpenCode](https://opencode.ai). Helpful for adding browser context to prompts.
 
 ## Features
 
